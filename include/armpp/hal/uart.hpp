@@ -1,12 +1,13 @@
 #pragma once
 
 #include <armpp/hal/registers.hpp>
+#include <armpp/util/to_chars.hpp>
 
 #include <cstdint>
 
 namespace armpp::hal::uart {
 
-enum class number_base { bin = 2, oct = 8, dec = 10, hex = 16 };
+using number_base = util::number_base;
 
 using data_register = read_write_register<raw_register, 0, 8>;
 static_assert(sizeof(data_register) == 4);
@@ -55,7 +56,8 @@ union interrupt_register {
 };
 static_assert(sizeof(interrupt_register) == 4);
 
-using bauddiv_register = read_write_register<raw_register, 0, 20, access_mode::register_wise>;
+using bauddiv_register = raw_register volatile;
+// read_write_register<raw_register, 0, 20, access_mode::register_wise>;
 static_assert(sizeof(bauddiv_register) == 4);
 
 // TODO Maybe flags?
@@ -86,20 +88,6 @@ digits_per_byte(number_base base)
         return 2;
     }
 }
-
-namespace detail {
-
-inline void
-reverse_string(char* first, char* last)
-{
-    for (; first < last; ++first, --last) {
-        auto tmp = *first;
-        *first   = *last;
-        *last    = tmp;
-    }
-}
-
-}    // namespace detail
 
 //----------------------------------------------------------------------------
 /**
@@ -161,66 +149,9 @@ public:
     {
         constexpr auto byte_count = sizeof(Integer);
         constexpr auto bit_count  = byte_count * 8;
-        constexpr char digit_chars[]
-            = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-
-        if (width == 0 && base == number_base::bin) {
-            width = byte_count * 8;
-        }
-        if (base == number_base::bin) {
-            // For binary numbers output requested bit count
-            while (width > 0) {
-                switch ((val >> (width - 1) & 1)) {
-                case 0:
-                    put('0');
-                    break;
-                case 1:
-                    put('1');
-                    break;
-                }
-                --width;
-                if (width % 8 == 0 && width != 0) {
-                    put(' ');
-                }
-            }
-        } else {
-            auto sign = false;
-            if constexpr (std::is_signed_v<Integer>) {
-                if (base == number_base::dec) {
-                    sign = val & (1 << (bit_count - 1));
-                    if (sign) {
-                        val = -val;
-                    }
-                } else {
-                    write(static_cast<std::make_unsigned_t<Integer>>(val), base, width);
-                    return;
-                }
-            }
-
-            std::uint8_t digit_count = 0U;
-            char         buff[byte_count * 4];
-            if (val == 0) {
-                *buff       = '0';
-                digit_count = 1;
-            } else {
-                auto base_value = static_cast<std::underlying_type_t<number_base>>(base);
-                while (val > 0) {
-                    buff[digit_count] = digit_chars[val % base_value];
-                    val /= base_value;
-                    ++digit_count;
-                }
-            }
-            if (sign) {
-                buff[digit_count] = '-';
-                ++digit_count;
-            }
-            for (; digit_count < width && digit_count < byte_count * 4; ++digit_count) {
-                buff[digit_count] = fill;
-            }
-            detail::reverse_string(buff, buff + (digit_count - 1));
-            buff[digit_count] = 0;
-            write(buff);
-        }
+        char           buffer[bit_count + 1];
+        util::to_chars(buffer, bit_count + 1, val, base, width, fill);
+        write(buffer);
     }
 
     char

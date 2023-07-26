@@ -6,7 +6,7 @@ system_init()
     // init clocks here
     using namespace armpp::hal::system;
     // TODO Move the magic constant somewhere
-    clock::mutable_instance().system_frequency_ = 54'000'000;    // 54MHz
+    clock::mutable_instance().system_frequency(54'000'000);    // 54MHz
 }
 
 void
