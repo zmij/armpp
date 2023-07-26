@@ -53,8 +53,7 @@ add_compile_options(
     -fno-exceptions
     -Wno-volatile # C++20 deprecated volatile stuff
     -Wall
-    -Werror
-)
+    )
 
 
 # Don't run the linker on compiler check

@@ -48,6 +48,13 @@ private:
     static clock&
     mutable_instance();
 
+    void
+    system_frequency(tick_type freq)
+    {
+        system_frequency_ = freq;
+    }
+
+    tick_type system_frequency_;
     tick_type system_frequency_;
     tick_type tick_;
 };

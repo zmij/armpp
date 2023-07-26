@@ -1,12 +1,13 @@
 #pragma once
 
 #include <armpp/hal/registers.hpp>
+#include <armpp/util/to_chars.hpp>
 
 #include <cstdint>
 
 namespace armpp::hal::uart {
 
-enum class number_base { bin = 2, oct = 8, dec = 10, hex = 16 };
+using number_base = util::number_base;
 
 using data_register = read_write_register<raw_register, 0, 8>;
 static_assert(sizeof(data_register) == 4);
@@ -55,7 +56,8 @@ union interrupt_register {
 };
 static_assert(sizeof(interrupt_register) == 4);
 
-using bauddiv_register = read_write_register<raw_register, 0, 20, access_mode::register_wise>;
+using bauddiv_register = raw_register volatile;
+// read_write_register<raw_register, 0, 20, access_mode::register_wise>;
 static_assert(sizeof(bauddiv_register) == 4);
 
 // TODO Maybe flags?
@@ -86,20 +88,6 @@ digits_per_byte(number_base base)
         return 2;
     }
 }
-
-namespace detail {
-
-inline void
-reverse_string(char* first, char* last)
-{
-    for (; first < last; ++first, --last) {
-        auto tmp = *first;
-        *first   = *last;
-        *last    = tmp;
-    }
-}
-
-}    // namespace detail
 
 //----------------------------------------------------------------------------
 /**
@@ -217,7 +205,7 @@ public:
             for (; digit_count < width && digit_count < byte_count * 4; ++digit_count) {
                 buff[digit_count] = fill;
             }
-            detail::reverse_string(buff, buff + (digit_count - 1));
+            util::reverse_string(buff, buff + (digit_count - 1));
             buff[digit_count] = 0;
             write(buff);
         }
