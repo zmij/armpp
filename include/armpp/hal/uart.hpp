@@ -25,13 +25,13 @@ static_assert(sizeof(state_register) == 4);
 template <register_mode Mode = register_mode::volatile_reg>
 union control_register {
     union {
-        bool_read_write_register<0, Mode> tx_enable;
-        bool_read_write_register<1, Mode> rx_enable;
-        bool_read_write_register<2, Mode> tx_interrupt_enable;
-        bool_read_write_register<3, Mode> rx_interrupt_enable;
-        bool_read_write_register<4, Mode> tx_overrun_interrupt_enable;
-        bool_read_write_register<5, Mode> rx_overrun_interrupt_enable;
-        bool_read_write_register<6, Mode> hs_test_mode;
+        bool_read_write_register<0, access_mode::bitwise, Mode> tx_enable;
+        bool_read_write_register<1, access_mode::bitwise, Mode> rx_enable;
+        bool_read_write_register<2, access_mode::bitwise, Mode> tx_interrupt_enable;
+        bool_read_write_register<3, access_mode::bitwise, Mode> rx_interrupt_enable;
+        bool_read_write_register<4, access_mode::bitwise, Mode> tx_overrun_interrupt_enable;
+        bool_read_write_register<5, access_mode::bitwise, Mode> rx_overrun_interrupt_enable;
+        bool_read_write_register<6, access_mode::bitwise, Mode> hs_test_mode;
     };
     raw_register volatile raw;
 
@@ -55,7 +55,7 @@ union interrupt_register {
 };
 static_assert(sizeof(interrupt_register) == 4);
 
-using bauddiv_register = raw_register;    // read_write_register<raw_register, 0, 20>;
+using bauddiv_register = read_write_register<raw_register, 0, 20, access_mode::register_wise>;
 static_assert(sizeof(bauddiv_register) == 4);
 
 // TODO Maybe flags?
@@ -254,8 +254,15 @@ static_assert(sizeof(uart) == 4 * 5);
  */
 class uart_handle {
 public:
+    uart_handle(address device_address) : device_(*reinterpret_cast<uart*>(device_address)) {}
     uart_handle(address device_address, uart_init const& init) noexcept
-        : device_(*reinterpret_cast<uart*>(device_address))
+        : uart_handle{device_address}
+    {
+        configure(init);
+    }
+
+    void
+    configure(uart_init const& init) noexcept
     {
         // TODO check for error status and report it somehow
         device_.configure(init);

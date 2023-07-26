@@ -1,6 +1,6 @@
 #include <armpp/hal/uart.hpp>
-
-extern "C" uint32_t PCLK1;
+//
+#include <armpp/hal/system.hpp>
 
 namespace armpp::hal::uart {
 void
@@ -24,7 +24,7 @@ uart::configure(uart_init const& init)
 
     ctrl_.raw = 0;
     ctrl_.raw = new_ctrl.raw;
-    // TODO replace with clock control
-    bauddiv_ = PCLK1 / init.baud_rate;
+    // TODO replace with required clock control
+    bauddiv_ = system::clock::instance().system_frequency() / init.baud_rate;
 }
 }    // namespace armpp::hal::uart

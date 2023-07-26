@@ -30,7 +30,10 @@ public:
     }
 
     tick_type
-    system_frequency() const;
+    system_frequency() const
+    {
+        return system_frequency_;
+    }
 
 public:
     static clock const&
@@ -45,6 +48,7 @@ private:
     static clock&
     mutable_instance();
 
+    tick_type system_frequency_;
     tick_type tick_;
 };
 
