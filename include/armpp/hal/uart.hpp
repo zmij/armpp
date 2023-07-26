@@ -26,13 +26,13 @@ static_assert(sizeof(state_register) == 4);
 template <register_mode Mode = register_mode::volatile_reg>
 union control_register {
     union {
-        bool_read_write_register<0, access_mode::bitwise, Mode> tx_enable;
-        bool_read_write_register<1, access_mode::bitwise, Mode> rx_enable;
-        bool_read_write_register<2, access_mode::bitwise, Mode> tx_interrupt_enable;
-        bool_read_write_register<3, access_mode::bitwise, Mode> rx_interrupt_enable;
-        bool_read_write_register<4, access_mode::bitwise, Mode> tx_overrun_interrupt_enable;
-        bool_read_write_register<5, access_mode::bitwise, Mode> rx_overrun_interrupt_enable;
-        bool_read_write_register<6, access_mode::bitwise, Mode> hs_test_mode;
+        bool_read_write_register<0, access_mode::field, Mode> tx_enable;
+        bool_read_write_register<1, access_mode::field, Mode> rx_enable;
+        bool_read_write_register<2, access_mode::field, Mode> tx_interrupt_enable;
+        bool_read_write_register<3, access_mode::field, Mode> rx_interrupt_enable;
+        bool_read_write_register<4, access_mode::field, Mode> tx_overrun_interrupt_enable;
+        bool_read_write_register<5, access_mode::field, Mode> rx_overrun_interrupt_enable;
+        bool_read_write_register<6, access_mode::field, Mode> hs_test_mode;
     };
     raw_register volatile raw;
 
