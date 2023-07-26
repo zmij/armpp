@@ -55,7 +55,6 @@ private:
     }
 
     tick_type system_frequency_;
-    tick_type system_frequency_;
     tick_type tick_;
 };
 

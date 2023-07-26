@@ -21,6 +21,23 @@ built using cmake, and instructions for building from source will be provided la
 ## Getting Started
 Examples and usage guidelines are currently under development and will be added in the future.
 
+```c++
+#include <armpp/hal/uart.hpp>
+
+extern "C"
+int main()
+{
+    // This function will be removed later
+    system_init();
+
+    armpp::hal::uart::uart_handle uart0{uart0_address, {.enable{.tx = true}, .baud_rate = 9600}};
+    uart0 << "Hello world!\r\n";
+
+    while(1) {}
+}
+
+```
+
 ## Building the Library
 The armpp library can be compiled from the source using cmake.
 
