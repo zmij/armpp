@@ -4,7 +4,8 @@
 #   LINKER_SCRIPT   script for linking the target
 #   SOURCES         source files for the target
 #   INCLUDE_DIRS    include directories
-#   
+#   LINK_TARGETS    link libraries that were created with add_library
+#   LINK_LIBRARIES  link libraries
 function(add_firmware TARGET_NAME)
     set(options)
     set(one_val_options LINKER_SCRIPT)

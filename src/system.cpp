@@ -4,12 +4,16 @@ void
 system_init()
 {
     // init clocks here
+    using namespace armpp::hal::system;
+    // TODO Move the magic constant somewhere
+    clock::mutable_instance().system_frequency_ = 54'000'000;    // 54MHz
 }
 
 void
 system_tick()
 {
-    armpp::hal::system::clock::mutable_instance().increment_tick();
+    using namespace armpp::hal::system;
+    clock::mutable_instance().increment_tick();
 }
 
 namespace armpp::hal::system {

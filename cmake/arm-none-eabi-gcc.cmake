@@ -51,6 +51,9 @@ add_compile_options(
     -g3
     -fno-rtti
     -fno-exceptions
+    -Wno-volatile # C++20 deprecated volatile stuff
+    -Wall
+    -Werror
 )
 
 
