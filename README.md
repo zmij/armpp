@@ -77,6 +77,8 @@ built using cmake, and instructions for building from source will be provided la
 ## Getting Started
 Examples and usage guidelines are currently under development and will be added in the future.
 
+### Hello World Program
+
 ```c++
 #include <armpp/hal/uart.hpp>
 
@@ -92,6 +94,31 @@ int main()
     while(1) {}
 }
 
+```
+
+### Basic Timer Program
+
+```C++
+#include <armpp/hal/timer.hpp>
+#include <armpp/hal/system.hpp>
+
+extern "C"
+int main()
+{
+    // This function will be removed later
+    system_init();
+
+    auto const& clock           = armpp::hal::system::clock::instance();
+    auto const  ticks_per_milli = clock.ticks_per_millisecond();
+
+    armpp::hal::uart::uart_handle uart0{uart0_address, {.enable{.tx = true}, .baud_rate = 9600}};
+    armpp::hal::timer::timer_handle timer0{timer0_address, {.enable = false, .interrupt_enable = false}};
+
+    while (1) {
+        timer0.delay(ticks_per_milli * 5000);
+        uart0 << "Hello there\r\n";
+    }
+}
 ```
 
 ## Building the Library
