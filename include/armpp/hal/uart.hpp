@@ -276,7 +276,8 @@ public:
      * @brief Constructor
      * @param device_address The address of the UART device
      */
-    uart_handle(address device_address) : device_(*reinterpret_cast<uart*>(device_address)) {}
+    uart_handle(address device_address) noexcept : device_{*reinterpret_cast<uart*>(device_address)}
+    {}
     /**
      * @brief Constructor with initialization parameters
      * @param device_address The address of the UART device
