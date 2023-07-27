@@ -16,7 +16,7 @@ Gowin GW1NSR-4C FPGA development board TangNano 4K.
 ### Register Fields
 The library provides building blocks for constructing interfaces for various hardware.
 
-[registers.hpp](blob/master/include/armpp/hal/registers.hpp) contains templates for describing 
+[registers.hpp](include/armpp/hal/registers.hpp) contains templates for describing 
 read-write, read-only and write-only register fields. The corresponding templates are:
 
 ```c++
