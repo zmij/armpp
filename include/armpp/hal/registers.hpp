@@ -22,10 +22,10 @@ concept register_value = integral<T> || enumeration<T>;
 
 namespace armpp::hal {
 
-constexpr std::size_t register_bits = 32;
+using raw_register                  = std::uint32_t;
+constexpr std::size_t register_bits = sizeof(raw_register) * 8;
 
-using raw_register = std::uint32_t;
-using address      = std::uint32_t;
+using address = std::uint32_t;
 
 /**
  * @enum register_mode
@@ -269,7 +269,7 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode> {
 }    // namespace detail
 
 /**
- *  @struct register_base
+ *  @struct register_field_base
  *  @brief Template structure representing a register field base class.
  *
  *  This template structure represents a register base with the given type, offset, size, access
@@ -286,30 +286,30 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode> {
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
           access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
     requires(Offset + Size <= register_bits)
-struct register_base : private detail::register_data<T, Offset, Size, Access, Mode> {
+struct register_field_base : private detail::register_data<T, Offset, Size, Access, Mode> {
     using value_type = T;
 
     /** @brief Default constructor. */
-    constexpr register_base() = default;
+    constexpr register_field_base() = default;
     /** @brief Copy constructor (deleted). */
-    register_base(register_base const&) = delete;
+    register_field_base(register_field_base const&) = delete;
     /** @brief Move constructor (deleted). */
-    register_base(register_base&&) = delete;
+    register_field_base(register_field_base&&) = delete;
 
 protected:
     /**
-     * @brief Equality operator between two register_base instances.
+     * @brief Equality operator between two register_field_base instances.
      *
-     * @param other The other register_base instance to compare.
+     * @param other The other register_field_base instance to compare.
      * @return      True if the two instances are equal, false otherwise.
      */
     constexpr bool
-    operator==(register_base const& other) const
+    operator==(register_field_base const& other) const
     {
         return get() == other.get();
     }
     /**
-     * @brief Equality operator between a register_base instance and a value.
+     * @brief Equality operator between a register_field_base instance and a value.
      *
      * @param other   The value to compare.
      * @return        True if the instance and the value are equal, false otherwise.
@@ -321,19 +321,19 @@ protected:
     }
 
     /**
-     * @brief Inequality operator between two register_base instances.
+     * @brief Inequality operator between two register_field_base instances.
      *
-     * @param other   The other register_base instance to compare.
+     * @param other   The other register_field_base instance to compare.
      * @return        True if the two instances are not equal, false otherwise.
      */
     constexpr bool
-    operator!=(register_base const& other) const
+    operator!=(register_field_base const& other) const
     {
         return !(*this == other);
     }
 
     /**
-     * @brief Inequality operator between a register_base instance and a value.
+     * @brief Inequality operator between a register_field_base instance and a value.
      *
      * @param other   The value to compare.
      * @return        True if the instance and the value are not equal, false otherwise.
@@ -345,19 +345,19 @@ protected:
     }
 
     /**
-     * @brief Less than operator between two register_base instances.
+     * @brief Less than operator between two register_field_base instances.
      *
-     * @param other   The other register_base instance to compare.
+     * @param other   The other register_field_base instance to compare.
      * @return        True if the instance is less than the other instance, false otherwise.
      */
     constexpr bool
-    operator<(register_base const& other) const
+    operator<(register_field_base const& other) const
     {
         return get() < other.get();
     }
 
     /**
-     * @brief Less than operator between a register_base instance and a value.
+     * @brief Less than operator between a register_field_base instance and a value.
      *
      * @param other   The value to compare.
      * @return        True if the instance is less than the value, false otherwise.
@@ -371,23 +371,23 @@ protected:
     /**
      * @brief Copy assignment operator (deleted).
      */
-    register_base&
-    operator=(register_base const&)
+    register_field_base&
+    operator=(register_field_base const&)
         = delete;
     /**
      * @brief Move assignment operator (deleted).
      */
-    register_base&
-    operator=(register_base&&)
+    register_field_base&
+    operator=(register_field_base&&)
         = delete;
 
     /**
      * @brief Assignment operator from a value.
      *
      * @param value   The value to assign.
-     * @return        The reference to this register_base instance.
+     * @return        The reference to this register_field_base instance.
      */
-    register_base&
+    register_field_base&
     operator=(T const& value)
     {
         set(value);
@@ -409,7 +409,7 @@ protected:
 template <concepts::register_value T, std::size_t Offset, std::size_t Size, access_mode Access,
           register_mode Mode>
 constexpr bool
-operator==(T const& rhs, register_base<T, Offset, Size, Access, Mode> const& lhs)
+operator==(T const& rhs, register_field_base<T, Offset, Size, Access, Mode> const& lhs)
 {
     return lhs == rhs;
 }
@@ -417,20 +417,20 @@ operator==(T const& rhs, register_base<T, Offset, Size, Access, Mode> const& lhs
 template <concepts::register_value T, std::size_t Offset, std::size_t Size, access_mode Access,
           register_mode Mode>
 constexpr bool
-operator<(T const& rhs, register_base<T, Offset, Size, Access, Mode> const& lhs)
+operator<(T const& rhs, register_field_base<T, Offset, Size, Access, Mode> const& lhs)
 {
     return !(lhs < rhs) && (rhs != lhs);
 }
 
 /**
- *  @struct read_write_register
+ *  @struct read_write_register_field
  *  @brief Template structure representing a read-write register field.
  *
  *  This template structure represents a read-write register with the given type, offset, size,
  *  access mode, and register mode.
  *
- *  It inherits from the register_base structure and provides common operator overloads and member
- *  functions to manipulate the register.
+ *  It inherits from the register_field_base structure and provides common operator overloads and
+ * member functions to manipulate the register.
  *
  *  @tparam T Type that satisfies the register_value concept.
  *  @tparam Offset Offset of the register.
@@ -440,8 +440,8 @@ operator<(T const& rhs, register_base<T, Offset, Size, Access, Mode> const& lhs)
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
           access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
-struct read_write_register : register_base<T, Offset, Size, Access, Mode> {
-    using base_type  = register_base<T, Offset, Size, Access, Mode>;
+struct read_write_register_field : register_field_base<T, Offset, Size, Access, Mode> {
+    using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
     using value_type = typename base_type::value_type;
 
     using base_type::base_type;
@@ -455,7 +455,7 @@ struct read_write_register : register_base<T, Offset, Size, Access, Mode> {
 };
 
 /**
- * @struct read_only_register
+ * @struct read_only_register_field
  * @brief Represents a read-only register field.
  *
  * Provides only read and compare functionality.
@@ -468,8 +468,8 @@ struct read_write_register : register_base<T, Offset, Size, Access, Mode> {
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
           access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
-struct read_only_register : register_base<T, Offset, Size, Access, Mode> {
-    using base_type  = register_base<T, Offset, Size, Access, Mode>;
+struct read_only_register_field : register_field_base<T, Offset, Size, Access, Mode> {
+    using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
     using value_type = typename base_type::value_type;
 
     using base_type::base_type;
@@ -481,7 +481,7 @@ struct read_only_register : register_base<T, Offset, Size, Access, Mode> {
 };
 
 /**
- * @struct write_only_register
+ * @struct write_only_register_field
  * @brief Represents a write-only register field.
  *
  * Provides only write functionality, no reading or comparing.
@@ -494,8 +494,8 @@ struct read_only_register : register_base<T, Offset, Size, Access, Mode> {
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
           access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
-struct write_only_register : register_base<T, Offset, Size, Access, Mode> {
-    using base_type  = register_base<T, Offset, Size, Access, Mode>;
+struct write_only_register_field : register_field_base<T, Offset, Size, Access, Mode> {
+    using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
     using value_type = typename base_type::value_type;
 
     using base_type::base_type;
@@ -504,95 +504,110 @@ struct write_only_register : register_base<T, Offset, Size, Access, Mode> {
 };
 
 /**
- * @typedef raw_read_write_register
- * @brief Alias for read_write_register with raw_register value type.
+ * @typedef raw_read_write_register_field
+ * @brief Alias for read_write_register_field with raw_register value type.
  * @tparam Offset Offset of the register.
  * @tparam Size Size of the register.
+ * @tparam Access Access mode of the register (default: access_mode::field).
+ * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, std::size_t Size>
-using raw_read_write_register = read_write_register<raw_register, Offset, Size>;
+template <std::size_t Offset, std::size_t Size, access_mode Access = access_mode::field,
+          register_mode Mode = register_mode::volatile_reg>
+using raw_read_write_register_field
+    = read_write_register_field<raw_register, Offset, Size, Access, Mode>;
 /**
- * @typedef raw_read_only_register
- * @brief Alias for read_only_register with raw_register value type.
+ * @typedef raw_read_only_register_field
+ * @brief Alias for read_only_register_field with raw_register value type.
  * @tparam Offset Offset of the register.
  * @tparam Size Size of the register.
+ * @tparam Access Access mode of the register (default: access_mode::field).
+ * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, std::size_t Size>
-using raw_read_only_register = read_only_register<raw_register, Offset, Size>;
+template <std::size_t Offset, std::size_t Size, access_mode Access = access_mode::field,
+          register_mode Mode = register_mode::volatile_reg>
+using raw_read_only_register_field
+    = read_only_register_field<raw_register, Offset, Size, Access, Mode>;
 /**
- * @typedef raw_write_only_register
- * @brief Alias for write_only_register with raw_register value type.
+ * @typedef raw_write_only_register_field
+ * @brief Alias for write_only_register_field with raw_register value type.
  * @tparam Offset Offset of the register.
  * @tparam Size Size of the register.
+ * @tparam Access Access mode of the register (default: access_mode::field).
+ * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, std::size_t Size>
-using raw_write_only_register = write_only_register<raw_register, Offset, Size>;
+template <std::size_t Offset, std::size_t Size, access_mode Access = access_mode::field,
+          register_mode Mode = register_mode::volatile_reg>
+using raw_write_only_register_field
+    = write_only_register_field<raw_register, Offset, Size, Access, Mode>;
 
 /**
- * @typedef bit_read_write_register
- * @brief Alias for read_write_register with raw_register value type and size 1.
+ * @typedef bit_read_write_register_field
+ * @brief Alias for read_write_register_field with raw_register value type and size 1.
  * @tparam Offset Offset of the register.
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = access_mode::field,
           register_mode Mode = register_mode::volatile_reg>
-using bit_read_write_register = read_write_register<raw_register, Offset, 1, Access, Mode>;
+using bit_read_write_register_field
+    = read_write_register_field<raw_register, Offset, 1, Access, Mode>;
 
 /**
  * @typedef bit_read_only_register
- * @brief Alias for read_only_register with raw_register value type and size 1.
+ * @brief Alias for read_only_register_field with raw_register value type and size 1.
  * @tparam Offset Offset of the register.
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = access_mode::field,
           register_mode Mode = register_mode::volatile_reg>
-using bit_read_only_register = read_only_register<raw_register, Offset, 1, Access, Mode>;
+using bit_read_only_register_field
+    = read_only_register_field<raw_register, Offset, 1, Access, Mode>;
 
 /**
  * @typedef bit_write_only_register
- * @brief Alias for write_only_register with raw_register value type and size 1.
+ * @brief Alias for write_only_register_field with raw_register value type and size 1.
  * @tparam Offset Offset of the register.
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = access_mode::field,
           register_mode Mode = register_mode::volatile_reg>
-using bit_write_only_register = write_only_register<raw_register, Offset, 1, Access, Mode>;
+using bit_write_only_register_field
+    = write_only_register_field<raw_register, Offset, 1, Access, Mode>;
 
 /**
  * @typedef bool_read_write_register
- * @brief Alias for read_write_register with bool value type and size 1.
+ * @brief Alias for read_write_register_field with bool value type and size 1.
  * @tparam Offset Offset of the register.
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = access_mode::field,
           register_mode Mode = register_mode::volatile_reg>
-using bool_read_write_register = read_write_register<bool, Offset, 1, Access, Mode>;
+using bool_read_write_register_field = read_write_register_field<bool, Offset, 1, Access, Mode>;
 
 /**
  * @typedef bool_read_only_register
- * @brief Alias for read_only_register with bool value type and size 1.
+ * @brief Alias for read_only_register_field with bool value type and size 1.
  * @tparam Offset Offset of the register.
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = access_mode::field,
           register_mode Mode = register_mode::volatile_reg>
-using bool_read_only_register = read_only_register<bool, Offset, 1, Access, Mode>;
+using bool_read_only_register_field = read_only_register_field<bool, Offset, 1, Access, Mode>;
 
 /**
  * @typedef bool_write_only_register
- * @brief Alias for write_only_register with bool value type and size 1.
+ * @brief Alias for write_only_register_field with bool value type and size 1.
  * @tparam Offset Offset of the register.
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = access_mode::field,
           register_mode Mode = register_mode::volatile_reg>
-using bool_write_only_register = write_only_register<bool, Offset, 1, Access, Mode>;
+using bool_write_only_register_field = write_only_register_field<bool, Offset, 1, Access, Mode>;
 
 //----------------------------------------------------------------------------
 // Traits and concepts
@@ -610,7 +625,7 @@ struct is_register_field : std::false_type {};
  *
  * This specialization of `is_register_field` trait is used to check if a given type is a register
  * field. It inherits from `is_base_of` trait to check if the given type is derived from
- * `register_base`.
+ * `register_field_base`.
  *
  * @tparam Reg The register type.
  * @tparam T The register value type.
@@ -624,14 +639,14 @@ template <template <concepts::register_value, std::size_t, std::size_t, access_m
           concepts::register_value T, std::size_t Offset, std::size_t Size, access_mode Access,
           register_mode Mode>
 struct is_register_field<Reg<T, Offset, Size, Access, Mode>>
-    : std::is_base_of<register_base<T, Offset, Size, Access, Mode>,
+    : std::is_base_of<register_field_base<T, Offset, Size, Access, Mode>,
                       Reg<T, Offset, Size, Access, Mode>> {};
 
 // Traits static test
 static_assert(!is_register_field<std::uint32_t>::value);
-static_assert(is_register_field<bool_read_write_register<0>>::value);
-static_assert(is_register_field<bool_read_only_register<0>>::value);
-static_assert(is_register_field<bool_write_only_register<0>>::value);
+static_assert(is_register_field<bool_read_write_register_field<0>>::value);
+static_assert(is_register_field<bool_read_only_register_field<0>>::value);
+static_assert(is_register_field<bool_write_only_register_field<0>>::value);
 
 /**
  * @brief Concept for register fields.

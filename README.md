@@ -13,6 +13,62 @@ compatible with most ARM32 Cortex-M based Microcontrollers (MCUs).
 However, it's currently being tested on an ARM32 Cortex-M3 core in a 
 Gowin GW1NSR-4C FPGA development board TangNano 4K.
 
+### Register Fields
+The library provides building blocks for constructing interfaces for various hardware.
+
+[registers.hpp](blob/master/include/armpp/hal/registers.hpp) contains templates for describing 
+read-write, read-only and write-only register fields. The corresponding templates are:
+
+```c++
+template <concepts::register_value T, std::size_t Offset, std::size_t Size, /*...*/ >
+struct read_write_register_field;
+
+template <concepts::register_value T, std::size_t Offset, std::size_t Size, /*...*/ >
+struct read_only_register_field;
+
+template <concepts::register_value T, std::size_t Offset, std::size_t Size, /*...*/ >
+struct write_only_register_field;
+```
+
+A couple of shortcut aliases are provided, ACCESSMODE in the following code stands for 
+`read_write`, `read_only` and `write_only`:
+
+```c++
+/**
+ * Integral value of arbitrary size and offset
+ */
+template <std::size_t Offset, std::size_t Size, /*...*/>
+using raw_ACCESSMODE_register_field = ACCESSMODE_register_field<raw_register, Offset, Size, /*...*/>;
+
+/**
+ * Access individual bits at arbitrary offsets
+ */
+template <std::size_t Offset, /*...*/>
+using bit_ACCESSMODE_register_field = ACCESSMODE_register_field<raw_register, Offset, 1, /*...*/>;
+
+/**
+ * Access individual bits as type boolean
+ */
+template <std::size_t Offset, std::size_t Size, /*...*/>
+using bool_ACCESSMODE_register_field = ACCESSMODE_register_field<bool, Offset, Size, /*...*/>;
+
+```
+
+A register is constructed from the fields using `union`, for example, to implement a simple
+status register for a Gowin Cortex-M3 UART device, that contains 4 fields we can write:
+
+```c++
+union state_register {
+    bool_read_only_register_field<0> tx_buffer_full;
+    bool_read_only_register_field<1> rx_buffer_full;
+    bool_read_write_register_field<2> tx_buffer_overrun;
+    bool_read_write_register_field<3> rx_buffer_overrun;
+};
+```
+
+The register fields can be used with integral types (signed and unsigned) and enumerations.
+
+
 ## Prerequisites
 To use the library, you will need to have the arm-none-eabi toolkit installed. 
 I'm currently working on adding support for the clang toolkit. The library is
