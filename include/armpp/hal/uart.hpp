@@ -9,15 +9,15 @@ namespace armpp::hal::uart {
 
 using number_base = util::number_base;
 
-using data_register = read_write_register<raw_register, 0, 8>;
+using data_register = read_write_register_field<raw_register, 0, 8>;
 static_assert(sizeof(data_register) == 4);
 
 union state_register {
     union {
-        bool_read_only_register<0> tx_buffer_full;
-        bool_read_only_register<1> rx_buffer_full;
-        bit_read_write_register<2> tx_buffer_overrun;
-        bit_read_write_register<3> rx_buffer_overrun;
+        bool_read_only_register_field<0> tx_buffer_full;
+        bool_read_only_register_field<1> rx_buffer_full;
+        bit_read_write_register_field<2> tx_buffer_overrun;
+        bit_read_write_register_field<3> rx_buffer_overrun;
     };
     raw_register volatile raw;
 };
@@ -26,13 +26,13 @@ static_assert(sizeof(state_register) == 4);
 template <register_mode Mode = register_mode::volatile_reg>
 union control_register {
     union {
-        bool_read_write_register<0, access_mode::field, Mode> tx_enable;
-        bool_read_write_register<1, access_mode::field, Mode> rx_enable;
-        bool_read_write_register<2, access_mode::field, Mode> tx_interrupt_enable;
-        bool_read_write_register<3, access_mode::field, Mode> rx_interrupt_enable;
-        bool_read_write_register<4, access_mode::field, Mode> tx_overrun_interrupt_enable;
-        bool_read_write_register<5, access_mode::field, Mode> rx_overrun_interrupt_enable;
-        bool_read_write_register<6, access_mode::field, Mode> hs_test_mode;
+        bool_read_write_register_field<0, access_mode::field, Mode> tx_enable;
+        bool_read_write_register_field<1, access_mode::field, Mode> rx_enable;
+        bool_read_write_register_field<2, access_mode::field, Mode> tx_interrupt_enable;
+        bool_read_write_register_field<3, access_mode::field, Mode> rx_interrupt_enable;
+        bool_read_write_register_field<4, access_mode::field, Mode> tx_overrun_interrupt_enable;
+        bool_read_write_register_field<5, access_mode::field, Mode> rx_overrun_interrupt_enable;
+        bool_read_write_register_field<6, access_mode::field, Mode> hs_test_mode;
     };
     raw_register volatile raw;
 
@@ -42,22 +42,22 @@ static_assert(sizeof(control_register<>) == 4);
 
 union interrupt_register {
     union {
-        bool_read_only_register<0> tx_interrupt;
-        bool_read_only_register<1> rx_interrupt;
-        bool_read_only_register<2> tx_overrun_interrupt;
-        bool_read_only_register<3> rx_overrun_interrupt;
+        bool_read_only_register_field<0> tx_interrupt;
+        bool_read_only_register_field<1> rx_interrupt;
+        bool_read_only_register_field<2> tx_overrun_interrupt;
+        bool_read_only_register_field<3> rx_overrun_interrupt;
 
-        bit_write_only_register<0> tx_interrupt_reset;
-        bit_write_only_register<1> rx_interrupt_reset;
-        bit_write_only_register<2> tx_overrun_interrupt_reset;
-        bit_write_only_register<3> rx_overrun_interrupt_reset;
+        bit_write_only_register_field<0> tx_interrupt_reset;
+        bit_write_only_register_field<1> rx_interrupt_reset;
+        bit_write_only_register_field<2> tx_overrun_interrupt_reset;
+        bit_write_only_register_field<3> rx_overrun_interrupt_reset;
     };
     raw_register volatile raw;
 };
 static_assert(sizeof(interrupt_register) == 4);
 
 using bauddiv_register = raw_register volatile;
-// read_write_register<raw_register, 0, 20, access_mode::register_wise>;
+// read_write_register_field<raw_register, 0, 20, access_mode::bitwise_logic>;
 static_assert(sizeof(bauddiv_register) == 4);
 
 // TODO Maybe flags?
