@@ -9,6 +9,8 @@ system_tick();
 
 namespace armpp::hal::system {
 
+// TODO frequency and chrono types
+
 class clock {
 public:
     using tick_type = std::uint32_t;
@@ -33,6 +35,12 @@ public:
     system_frequency() const
     {
         return system_frequency_;
+    }
+
+    tick_type
+    ticks_per_millisecond() const
+    {
+        return system_frequency_ / 1000;
     }
 
 public:
