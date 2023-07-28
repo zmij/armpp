@@ -452,6 +452,16 @@ operator<<(uart_handle& dev, T val)
     return dev;
 }
 
+template <concepts::enumeration E>
+uart_handle&
+operator<<(uart_handle& dev, E val)
+{
+    using integral_type = std::underlying_type_t<E>;
+    dev->write(static_cast<integral_type>(val), dev.get_output_number_base(),
+               dev.get_output_width());
+    return dev;
+}
+
 /**
  * @brief Writes the value of a readable_field to the UART handle.
  * @tparam F The type of the readable_field.
