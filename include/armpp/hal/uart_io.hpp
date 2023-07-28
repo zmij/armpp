@@ -142,10 +142,10 @@ template <>
 constexpr char duration_unit<std::ratio<3600>>[] = "h";
 
 /**
- * @brief Output picoseconds duration
+ * @brief Output duration
  *
  * @param dev UART device handle
- * @param val Picoseconds value
+ * @param val Duration value
  * @return UART device handle reference
  */
 template <typename Ratio>
