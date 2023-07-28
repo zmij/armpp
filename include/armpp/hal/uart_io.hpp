@@ -94,6 +94,18 @@ operator<<(uart_handle& dev, void (*fp)(uart_handle&))
     return dev;
 }
 
+template <typename T>
+constexpr char hertz_units[] = "";
+
+template <>
+constexpr char hertz_units<std::ratio<1>>[] = "Hz";
+template <>
+constexpr char hertz_units<std::kilo>[] = "KHz";
+template <>
+constexpr char hertz_units<std::mega>[] = "MHz";
+template <>
+constexpr char hertz_units<std::giga>[] = "GHz";
+
 /**
  * @brief Output frequency in Hertz
  *
@@ -101,14 +113,33 @@ operator<<(uart_handle& dev, void (*fp)(uart_handle&))
  * @param val Frequency value
  * @return UART device handle reference
  */
-inline uart_handle&
-operator<<(uart_handle& dev, frequency::hertz const& val)
+template <typename Ratio>
+uart_handle&
+operator<<(uart_handle& dev, frequency::frequency<Ratio> const& val)
 {
     auto base = dev.set_output_number_base(number_base::dec);
-    dev << val.count() << "Hz";
+    dev << val.count() << hertz_units<Ratio>;
     dev.set_output_number_base(base);
     return dev;
 }
+
+template <typename T>
+constexpr char duration_unit[] = "";
+
+template <>
+constexpr char duration_unit<std::pico>[] = "ps";
+template <>
+constexpr char duration_unit<std::nano>[] = "ns";
+template <>
+constexpr char duration_unit<std::micro>[] = "µs";
+template <>
+constexpr char duration_unit<std::milli>[] = "ms";
+template <>
+constexpr char duration_unit<std::ratio<1>>[] = "s";
+template <>
+constexpr char duration_unit<std::ratio<60>>[] = "m";
+template <>
+constexpr char duration_unit<std::ratio<3600>>[] = "h";
 
 /**
  * @brief Output picoseconds duration
@@ -117,64 +148,13 @@ operator<<(uart_handle& dev, frequency::hertz const& val)
  * @param val Picoseconds value
  * @return UART device handle reference
  */
-inline uart_handle&
-operator<<(uart_handle& dev, chrono::picoseconds const& val)
+template <typename Ratio>
+uart_handle&
+operator<<(uart_handle& dev, chrono::duration<Ratio> const& val)
 {
     auto base = dev.set_output_number_base(number_base::dec);
-    dev << val.count() << "ps";
+    dev << val.count() << duration_unit<Ratio>;
     dev.set_output_number_base(base);
-    return dev;
-    return dev;
-}
-
-/**
- * @brief Output nanoseconds duration
- *
- * @param dev UART device handle
- * @param val nanoseconds value
- * @return UART device handle reference
- */
-inline uart_handle&
-operator<<(uart_handle& dev, chrono::nanoseconds const& val)
-{
-    auto base = dev.set_output_number_base(number_base::dec);
-    dev << val.count() << "ns";
-    dev.set_output_number_base(base);
-    return dev;
-    return dev;
-}
-
-/**
- * @brief Output microseconds duration
- *
- * @param dev UART device handle
- * @param val Microseconds value
- * @return UART device handle reference
- */
-inline uart_handle&
-operator<<(uart_handle& dev, chrono::microseconds const& val)
-{
-    auto base = dev.set_output_number_base(number_base::dec);
-    dev << val.count() << "µs";
-    dev.set_output_number_base(base);
-    return dev;
-    return dev;
-}
-
-/**
- * @brief Output milliseconds duration
- *
- * @param dev UART device handle
- * @param val Milliseconds value
- * @return UART device handle reference
- */
-inline uart_handle&
-operator<<(uart_handle& dev, chrono::milliseconds const& val)
-{
-    auto base = dev.set_output_number_base(number_base::dec);
-    dev << val.count() << "ms";
-    dev.set_output_number_base(base);
-    return dev;
     return dev;
 }
 
