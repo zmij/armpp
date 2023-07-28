@@ -25,6 +25,6 @@ uart::configure(uart_init const& init)
     ctrl_.raw = 0;
     ctrl_.raw = new_ctrl.raw;
     // TODO replace with required clock control
-    bauddiv_ = system::clock::instance().system_frequency() / init.baud_rate;
+    bauddiv_ = system::clock::instance().system_frequency().count() / init.baud_rate;
 }
 }    // namespace armpp::hal::uart

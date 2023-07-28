@@ -75,3 +75,5 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 add_compile_definitions(__STARTUP_CLEAR_BSS)
 
 enable_language(C CXX ASM)
+
+set(ARMPP_SYSTEM_FREQUENCY 54_MHz)

@@ -23,3 +23,4 @@ target_include_directories(
     ${ARMPP_INCLUDE_DIR}
 )
 target_link_libraries(armpp stdc++)
+target_compile_definitions(armpp PUBLIC ARMPP_SYSTEM_FREQUENCY=${ARMPP_SYSTEM_FREQUENCY})
