@@ -668,4 +668,221 @@ concept register_field = is_register_field<T>::value;
 template <typename T>
 concept readable_field = register_field<T> and requires(T const& reg) { reg.get(); };
 
+namespace detail {
+
+template <concepts::register_value T, std::size_t Size>
+struct array_field_accessor_base {
+    using value_type           = T;
+    static constexpr auto mask = util::bit_mask_v<0, Size>;
+
+public:
+    array_field_accessor_base() noexcept = default;
+    array_field_accessor_base(raw_register volatile& reg, std::size_t offset) noexcept
+        : reg_{&reg}, offset_{offset}
+    {}
+
+    array_field_accessor_base(array_field_accessor_base const&)     = delete;
+    array_field_accessor_base(array_field_accessor_base&&) noexcept = default;
+
+    array_field_accessor_base&
+    operator=(array_field_accessor_base const&)
+        = delete;
+    array_field_accessor_base&
+    operator=(array_field_accessor_base&&) noexcept
+        = default;
+
+protected:
+    // TODO comparison operators
+    value_type
+    get() const
+    {
+        if (!reg_)
+            // Call usage fault?
+            return static_cast<value_type>(0);
+
+        return static_cast<value_type>((*reg_ >> offset_) & mask);
+    }
+
+    void
+    set(value_type val)
+    {
+        if (!reg_)
+            // Call usage fault?
+            return;
+
+        *reg_ |= (static_cast<raw_register>(val) & mask) << offset_;
+    }
+
+    operator value_type() const { return get(); }
+
+    array_field_accessor_base&
+    operator=(value_type val)
+    {
+        set(val);
+        return *this;
+    }
+
+private:
+    raw_register volatile* reg_;
+    std::size_t            offset_;
+};
+
+template <concepts::register_value T, std::size_t Size>
+struct array_field_read_write_accessor : array_field_accessor_base<T, Size> {
+    using base_type  = array_field_accessor_base<T, Size>;
+    using value_type = typename base_type::value_type;
+
+    using base_type::base_type;
+
+    using base_type::get;
+    using base_type::operator value_type;
+
+    using base_type::operator=;
+    using base_type::set;
+};
+
+template <concepts::register_value T, std::size_t Size>
+struct array_field_read_only_accessor : array_field_accessor_base<T, Size> {
+    using base_type  = array_field_accessor_base<T, Size>;
+    using value_type = typename base_type::value_type;
+
+    using base_type::base_type;
+
+    using base_type::get;
+    using base_type::operator value_type;
+};
+
+template <concepts::register_value T, std::size_t Size>
+struct array_field_write_only_accessor : array_field_accessor_base<T, Size> {
+    using base_type  = array_field_accessor_base<T, Size>;
+    using value_type = typename base_type::value_type;
+
+    using base_type::base_type;
+
+    using base_type::operator=;
+    using base_type::set;
+};
+
+}    // namespace detail
+
+/**
+ * @brief Represents an array of values in a register
+ *
+ * Base class for accessing or manipulating a register (or a set of continuous registers) as an
+ * array of values.
+ *
+ * For example, NVIC device contains 8 32-bit registers to enable interrupts. It is much more
+ * convenient to treat those 8 registers as a single bit array.
+ */
+template <concepts::register_value T, std::size_t FieldSize, std::size_t FieldCount,
+          std::size_t RegisterCount,
+          template <concepts::register_value, std::size_t> typename AccessorType,
+          std::size_t FieldStorageSize = FieldSize, std::size_t InitialOffset = 0>
+    requires(RegisterCount > 0
+             && (FieldCount * FieldStorageSize + InitialOffset <= RegisterCount * register_bits))
+struct register_field_array_base {
+    using value_type           = T;
+    static constexpr auto mask = util::bit_mask_v<0, FieldSize>;
+    using accessor_type        = AccessorType<value_type, FieldSize>;
+
+protected:
+    value_type
+    get(std::size_t index) const
+    {
+        if (index >= FieldCount)
+            // Call usage fault?
+            return static_cast<value_type>(0);
+
+        auto bit_number = index * FieldStorageSize + InitialOffset;
+        auto reg_number = bit_number / register_bits;
+        auto reg_offset = bit_number % register_bits;
+
+        return static_cast<value_type>((data_[reg_number] >> reg_offset) & mask);
+    }
+    accessor_type
+    get_accessor(std::size_t index)
+    {
+        if (index >= FieldCount)
+            return accessor_type{};
+
+        auto bit_number = index * FieldStorageSize + InitialOffset;
+        auto reg_number = bit_number / register_bits;
+        auto reg_offset = bit_number % register_bits;
+
+        return accessor_type{data_[reg_number], reg_offset};
+    }
+
+private:
+    raw_register volatile data_[RegisterCount];
+};
+
+template <concepts::register_value T, std::size_t FieldSize, std::size_t FieldCount,
+          std::size_t RegisterCount, std::size_t FieldStorageSize = FieldSize,
+          std::size_t InitialOffset = 0>
+struct read_write_register_field_array
+    : register_field_array_base<T, FieldSize, FieldCount, RegisterCount,
+                                detail::array_field_read_write_accessor, FieldStorageSize,
+                                InitialOffset> {
+    using base_type  = register_field_array_base<T, FieldSize, FieldCount, RegisterCount,
+                                                detail::array_field_read_write_accessor,
+                                                FieldStorageSize, InitialOffset>;
+    using value_type = typename base_type::value_type;
+
+    auto
+    operator[](std::size_t index)
+    {
+        return this->get_accessor(index);
+    }
+
+    value_type
+    operator[](std::size_t index) const
+    {
+        return this->get(index);
+    }
+};
+
+template <concepts::register_value T, std::size_t FieldSize, std::size_t FieldCount,
+          std::size_t RegisterCount, std::size_t FieldStorageSize = FieldSize,
+          std::size_t InitialOffset = 0>
+struct read_only_register_field_array
+    : register_field_array_base<T, FieldSize, FieldCount, RegisterCount,
+                                detail::array_field_read_only_accessor, FieldStorageSize,
+                                InitialOffset> {
+    using base_type  = register_field_array_base<T, FieldSize, FieldCount, RegisterCount,
+                                                detail::array_field_read_only_accessor,
+                                                FieldStorageSize, InitialOffset>;
+    using value_type = typename base_type::value_type;
+
+    auto
+    operator[](std::size_t index)
+    {
+        return this->get_accessor(index);
+    }
+
+    value_type
+    operator[](std::size_t index) const
+    {
+        return this->get(index);
+    }
+};
+
+template <concepts::register_value T, std::size_t FieldSize, std::size_t FieldCount,
+          std::size_t RegisterCount, std::size_t FieldStorageSize = FieldSize,
+          std::size_t InitialOffset = 0>
+struct write_only_register_field_array
+    : register_field_array_base<T, FieldSize, FieldCount, RegisterCount,
+                                detail::array_field_write_only_accessor, FieldStorageSize,
+                                InitialOffset> {
+    using base_type  = register_field_array_base<T, FieldSize, FieldCount, RegisterCount,
+                                                detail::array_field_write_only_accessor,
+                                                FieldStorageSize, InitialOffset>;
+    using value_type = typename base_type::value_type;
+
+    auto
+    operator[](std::size_t index)
+    {
+        return this->get_accessor(index);
+    }
+};
+
 }    // namespace armpp::hal

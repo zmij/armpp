@@ -4,6 +4,7 @@ set(HAVE_FLAG_SEARCH_PATHS_FIRST 0)
 
 set(
     ARMPP_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/nvic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/system.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/timer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/uart.cpp
