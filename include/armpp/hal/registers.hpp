@@ -1,5 +1,6 @@
 #pragma once
 
+#include <armpp/hal/common_types.hpp>
 #include <armpp/util/mask.hpp>
 
 #include <concepts>
@@ -21,11 +22,6 @@ concept register_value = integral<T> || enumeration<T>;
 }    // namespace armpp::concepts
 
 namespace armpp::hal {
-
-using raw_register                  = std::uint32_t;
-constexpr std::size_t register_bits = sizeof(raw_register) * 8;
-
-using address = std::uint32_t;
 
 /**
  * @enum register_mode
@@ -114,6 +110,17 @@ enum class register_mode { volatile_reg = 0, non_volatile_reg = 1 };
  * The code was compiled with -O3 flag
  */
 enum class access_mode { field = 0, bitwise_logic };
+
+template <typename T>
+struct default_access_mode;
+
+template <concepts::integral T>
+struct default_access_mode<T> : std::integral_constant<access_mode, access_mode::field> {};
+template <concepts::enumeration T>
+struct default_access_mode<T> : std::integral_constant<access_mode, access_mode::bitwise_logic> {};
+
+template <concepts::register_value T>
+constexpr access_mode default_access_mode_v = default_access_mode<T>::value;
 
 namespace detail {
 
@@ -284,7 +291,8 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode> {
  *  @tparam Mode Register mode (Default: register_mode::volatile_reg).
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
+          access_mode   Access = default_access_mode_v<T>,
+          register_mode Mode   = register_mode::volatile_reg>
     requires(Offset + Size <= register_bits)
 struct register_field_base : private detail::register_data<T, Offset, Size, Access, Mode> {
     using value_type = T;
@@ -439,7 +447,8 @@ operator<(T const& rhs, register_field_base<T, Offset, Size, Access, Mode> const
  *  @tparam Mode Register mode (Default: register_mode::volatile_reg).
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
+          access_mode   Access = default_access_mode_v<T>,
+          register_mode Mode   = register_mode::volatile_reg>
 struct read_write_register_field : register_field_base<T, Offset, Size, Access, Mode> {
     using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
     using value_type = typename base_type::value_type;
@@ -467,7 +476,8 @@ struct read_write_register_field : register_field_base<T, Offset, Size, Access, 
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
+          access_mode   Access = default_access_mode_v<T>,
+          register_mode Mode   = register_mode::volatile_reg>
 struct read_only_register_field : register_field_base<T, Offset, Size, Access, Mode> {
     using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
     using value_type = typename base_type::value_type;
@@ -493,7 +503,8 @@ struct read_only_register_field : register_field_base<T, Offset, Size, Access, M
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode Access = access_mode::field, register_mode Mode = register_mode::volatile_reg>
+          access_mode   Access = default_access_mode_v<T>,
+          register_mode Mode   = register_mode::volatile_reg>
 struct write_only_register_field : register_field_base<T, Offset, Size, Access, Mode> {
     using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
     using value_type = typename base_type::value_type;
@@ -511,8 +522,9 @@ struct write_only_register_field : register_field_base<T, Offset, Size, Access, 
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, std::size_t Size, access_mode Access = access_mode::field,
-          register_mode Mode = register_mode::volatile_reg>
+template <std::size_t Offset, std::size_t Size,
+          access_mode   Access = default_access_mode_v<raw_register>,
+          register_mode Mode   = register_mode::volatile_reg>
 using raw_read_write_register_field
     = read_write_register_field<raw_register, Offset, Size, Access, Mode>;
 /**
@@ -523,8 +535,9 @@ using raw_read_write_register_field
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, std::size_t Size, access_mode Access = access_mode::field,
-          register_mode Mode = register_mode::volatile_reg>
+template <std::size_t Offset, std::size_t Size,
+          access_mode   Access = default_access_mode_v<raw_register>,
+          register_mode Mode   = register_mode::volatile_reg>
 using raw_read_only_register_field
     = read_only_register_field<raw_register, Offset, Size, Access, Mode>;
 /**
@@ -535,8 +548,9 @@ using raw_read_only_register_field
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, std::size_t Size, access_mode Access = access_mode::field,
-          register_mode Mode = register_mode::volatile_reg>
+template <std::size_t Offset, std::size_t Size,
+          access_mode   Access = default_access_mode_v<raw_register>,
+          register_mode Mode   = register_mode::volatile_reg>
 using raw_write_only_register_field
     = write_only_register_field<raw_register, Offset, Size, Access, Mode>;
 
@@ -547,7 +561,7 @@ using raw_write_only_register_field
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, access_mode Access = access_mode::field,
+template <std::size_t Offset, access_mode Access = default_access_mode_v<raw_register>,
           register_mode Mode = register_mode::volatile_reg>
 using bit_read_write_register_field
     = read_write_register_field<raw_register, Offset, 1, Access, Mode>;
@@ -559,7 +573,7 @@ using bit_read_write_register_field
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, access_mode Access = access_mode::field,
+template <std::size_t Offset, access_mode Access = default_access_mode_v<raw_register>,
           register_mode Mode = register_mode::volatile_reg>
 using bit_read_only_register_field
     = read_only_register_field<raw_register, Offset, 1, Access, Mode>;
@@ -571,7 +585,7 @@ using bit_read_only_register_field
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, access_mode Access = access_mode::field,
+template <std::size_t Offset, access_mode Access = default_access_mode_v<raw_register>,
           register_mode Mode = register_mode::volatile_reg>
 using bit_write_only_register_field
     = write_only_register_field<raw_register, Offset, 1, Access, Mode>;
@@ -583,7 +597,7 @@ using bit_write_only_register_field
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, access_mode Access = access_mode::field,
+template <std::size_t Offset, access_mode Access = default_access_mode_v<bool>,
           register_mode Mode = register_mode::volatile_reg>
 using bool_read_write_register_field = read_write_register_field<bool, Offset, 1, Access, Mode>;
 
@@ -594,7 +608,7 @@ using bool_read_write_register_field = read_write_register_field<bool, Offset, 1
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, access_mode Access = access_mode::field,
+template <std::size_t Offset, access_mode Access = default_access_mode_v<bool>,
           register_mode Mode = register_mode::volatile_reg>
 using bool_read_only_register_field = read_only_register_field<bool, Offset, 1, Access, Mode>;
 
@@ -605,7 +619,7 @@ using bool_read_only_register_field = read_only_register_field<bool, Offset, 1, 
  * @tparam Access Access mode of the register (default: access_mode::field).
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
-template <std::size_t Offset, access_mode Access = access_mode::field,
+template <std::size_t Offset, access_mode Access = default_access_mode_v<bool>,
           register_mode Mode = register_mode::volatile_reg>
 using bool_write_only_register_field = write_only_register_field<bool, Offset, 1, Access, Mode>;
 

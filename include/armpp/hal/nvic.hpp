@@ -1,5 +1,6 @@
 #pragma once
 
+#include <armpp/hal/common_types.hpp>
 #include <armpp/hal/handle_base.hpp>
 #include <armpp/hal/registers.hpp>
 
@@ -11,11 +12,6 @@ namespace armpp::hal::nvic {
 constexpr std::uint32_t interrupt_reg_count = 8;
 constexpr std::uint32_t interrupt_count     = 240;    // 240 as per ARM docs
 
-enum class set_t { no_effect = 0, set = 1 };
-enum class reset_t { no_effect = 0, reset = 1 };
-enum class enabled_t { disabled = 0, enabled = 1 };
-enum class active_t { inactive = 0, active = 1 };
-
 union interrupt_set_enable_register {
     write_only_register_field_array<set_t, 1, interrupt_count, interrupt_reg_count>    set;
     read_only_register_field_array<enabled_t, 1, interrupt_count, interrupt_reg_count> get;
@@ -23,7 +19,7 @@ union interrupt_set_enable_register {
 static_assert(sizeof(interrupt_set_enable_register) == sizeof(raw_register) * 8);
 
 union interrupt_clear_enable_register {
-    write_only_register_field_array<reset_t, 1, interrupt_count, interrupt_reg_count>  set;
+    write_only_register_field_array<clear_t, 1, interrupt_count, interrupt_reg_count>  set;
     read_only_register_field_array<enabled_t, 1, interrupt_count, interrupt_reg_count> get;
 };
 static_assert(sizeof(interrupt_clear_enable_register) == sizeof(raw_register) * 8);
@@ -34,7 +30,7 @@ union interrupt_set_pending_register {
 };
 
 union interrupt_clear_pending_register {
-    write_only_register_field_array<reset_t, 1, interrupt_count, interrupt_reg_count> set;
+    write_only_register_field_array<clear_t, 1, interrupt_count, interrupt_reg_count> set;
     read_only_register_field_array<active_t, 1, interrupt_count, interrupt_reg_count> get;
 };
 
@@ -117,7 +113,7 @@ public:
     void
     disable_irq(std::size_t index)
     {
-        icer_.set[index] = reset_t::reset;
+        icer_.set[index] = clear_t::clear;
     }
 
     bool
@@ -135,7 +131,7 @@ public:
     void
     clear_pending(std::size_t index)
     {
-        icpr_.set[index] = reset_t::reset;
+        icpr_.set[index] = clear_t::clear;
     }
 
     bool
