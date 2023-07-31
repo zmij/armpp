@@ -367,7 +367,6 @@ static_assert(sizeof(system_handler_control_and_state_register) == sizeof(raw_re
  * normally, but writing a 1 to any bit clears that bit.
  *
  * @todo Add separate fields for distinct registers
- * @todo separate fields for reading and resetting
  */
 union configurable_fault_status_register {
     //@{
@@ -378,24 +377,24 @@ union configurable_fault_status_register {
      * even when the MPU is disabled or not present. The return PC points to the faulting
      * instruction. The MMAR is not written.
      */
-    bit_read_write_register_field<0> iaccviol;
+    bit_read_clear_register_field<0> iaccviol;
     /**
      * Data access violation flag. Attempting to load or store at a location that does not permit
      * the operation sets the DACCVIOL flag. The return PC points to the faulting instruction. This
      * error loads MMAR with the address of the attempted access.
      */
-    bit_read_write_register_field<1> daccviol;
+    bit_read_clear_register_field<1> daccviol;
     /**
      * Unstack from exception return has caused one or more access violations. This is chained to
      * the handler, so that the original return stack is still present. SP is not adjusted from
      * failing return and new save is not performed. The MMAR is not written.
      */
-    bit_read_write_register_field<3> munstkerr;
+    bit_read_clear_register_field<3> munstkerr;
     /**
      * Stacking from exception has caused one or more access violations. The SP is still adjusted
      * and the values in the context area on the stack might be incorrect. The MMAR is not written.
      */
-    bit_read_write_register_field<4> mstkerr;
+    bit_read_clear_register_field<4> mstkerr;
     /**
      * Memory Manage Address Register (MMAR) address valid flag:
      *
@@ -407,7 +406,7 @@ union configurable_fault_status_register {
      * Fault handler must clear this bit. This prevents problems on return to a stacked active
      * MemManage handler whose MMAR value has been overwritten.
      */
-    bit_read_write_register_field<7> mmarvalid;
+    bit_read_clear_register_field<7> mmarvalid;
     //@}
     //@{
     /** @name Bus Fault Status Register */
@@ -420,11 +419,11 @@ union configurable_fault_status_register {
      * The IBUSERR flag is set by a prefetch error. The fault stops on the instruction, so if the
      * error occurs under a branch shadow, no fault occurs. The BFAR is not written.
      */
-    bit_read_write_register_field<8> ibuserr;
+    bit_read_clear_register_field<8> ibuserr;
     /**
      * Precise data bus error return.
      */
-    bit_read_write_register_field<9> precierr;
+    bit_read_clear_register_field<9> precierr;
     /**
      * Imprecise data bus error. It is a BusFault, but the Return PC is not related to the causing
      * instruction. This is not a synchronous fault. So, if detected when the priority of the
@@ -433,18 +432,18 @@ union configurable_fault_status_register {
      * lower priority exception, the handler detects both IMPRECISERR set and one of the precise
      * fault status bits set at the same time. The BFAR is not written.
      */
-    bit_read_write_register_field<10> ipreciserr;
+    bit_read_clear_register_field<10> ipreciserr;
     /**
      * Unstack from exception return has caused one or more bus faults. This is chained to the
      * handler, so that the original return stack is still present. SP is not adjusted from failing
      * return and new save is not performed. The BFAR is not written.
      */
-    bit_read_write_register_field<11> unstkerr;
+    bit_read_clear_register_field<11> unstkerr;
     /**
      * Stacking from exception has caused one or more bus faults. The SP is still adjusted and the
      * values in the context area on the stack might be incorrect. The BFAR is not written.
      */
-    bit_read_write_register_field<12> stkerr;
+    bit_read_clear_register_field<12> stkerr;
     /**
      * This bit is set if the Bus Fault Address Register (BFAR) contains a valid address. This is
      * true after a bus fault where the address is known. Other faults can clear this bit, such as a
@@ -454,7 +453,7 @@ union configurable_fault_status_register {
      * handler must clear this bit. This prevents problems if returning to a stacked active Bus
      * fault handler whose BFAR value has been overwritten.
      */
-    bit_read_write_register_field<15> bfarvalid;
+    bit_read_clear_register_field<15> bfarvalid;
     //@}
     //@{
     /** @name Usage Fault Status Register */
@@ -463,34 +462,34 @@ union configurable_fault_status_register {
      * This is an instruction that the processor cannot decode. The return PC points to the
      * undefined instruction.
      */
-    bit_read_write_register_field<16> undefinstr;
+    bit_read_clear_register_field<16> undefinstr;
     /**
      * Invalid combination of EPSR and instruction, for reasons other than UNDEFINED instruction.
      * Return PC points to faulting instruction, with the invalid state.
      */
-    bit_read_write_register_field<17> invstate;
+    bit_read_clear_register_field<17> invstate;
     /**
      * Attempt to load EXC_RETURN into PC illegally. Invalid instruction, invalid context, invalid
      * value. The return PC points to the instruction that tried to set the PC.
      */
-    bit_read_write_register_field<18> invpc;
+    bit_read_clear_register_field<18> invpc;
     /**
      * Attempt to use a coprocessor instruction. The processor does not support coprocessor
      * instructions.
      */
-    bit_read_write_register_field<19> nocp;
+    bit_read_clear_register_field<19> nocp;
     /**
      * When UNALIGN_TRP is enabled (see Configuration Control Register), and there is an attempt to
      * make an unaligned memory access, then this fault occurs.Unaligned LDM/STM/LDRD/STRD
      * instructions always fault irrespective of the setting of UNALIGN_TRP.
      */
-    bit_read_write_register_field<24> unaligned;
+    bit_read_clear_register_field<24> unaligned;
     /**
      * When DIV_0_TRP (see Configuration Control Register) is enabled and an SDIV or UDIV
      * instruction is used with a divisor of 0, this fault occurs The instruction is executed and
      * the return PC points to it. If DIV_0_TRP is not set, then the divide returns a quotient of 0.
      */
-    bit_read_write_register_field<15> dibyzero;
+    bit_read_clear_register_field<15> dibyzero;
     //@}
 };
 static_assert(sizeof(configurable_fault_status_register) == sizeof(raw_register));
@@ -506,13 +505,13 @@ union hard_fault_status_register {
      * This bit is set if there is a fault because of vector table read on exception processing (Bus
      * Fault). This case is always a Hard Fault. The return PC points to the pre-empted instruction.
      */
-    bit_read_write_register_field<1> vecttbl;
+    bit_read_clear_register_field<1> vecttbl;
     /**
      * Hard Fault activated because a Configurable Fault was received and cannot activate because of
      * priority or because the Configurable Fault is disabled.The Hard Fault handler then has to
      * read the other fault status registers to determine cause.
      */
-    bit_read_write_register_field<30> forced;
+    bit_read_clear_register_field<30> forced;
     /**
      * This bit is set if there is a fault related to debug.
      *
@@ -521,7 +520,7 @@ union hard_fault_status_register {
      * monitor debug are disabled, it only happens for debug events that are not ignored (minimally,
      * BKPT). The Debug Fault Status Register is updated.
      */
-    bit_read_write_register_field<31> debugevt;
+    bit_read_clear_register_field<31> debugevt;
 };
 
 /**
@@ -554,7 +553,7 @@ union debug_fault_status_register {
      * 1 = halt requested by NVIC, including step. The processor is halted on the next instruction.
      * 0 = no halt request.
      */
-    bit_read_write_register_field<0> halted;
+    bit_read_clear_register_field<0> halted;
     /**
      * BKPT flag:
      *
@@ -564,7 +563,7 @@ union debug_fault_status_register {
      * The BKPT flag is set by a BKPT instruction in flash patch code, and also by normal code.
      * Return PC points to breakpoint containing instruction.
      */
-    bit_read_write_register_field<1> bkpt;
+    bit_read_clear_register_field<1> bkpt;
     /**
      * Data Watchpoint and Trace (DWT) flag:
      *
@@ -573,7 +572,7 @@ union debug_fault_status_register {
      *
      * The processor stops at the current instruction or at the next instruction.
      */
-    bit_read_write_register_field<2> dwttrap;
+    bit_read_clear_register_field<2> dwttrap;
     /**
      * Vector catch flag:
      *
@@ -583,7 +582,7 @@ union debug_fault_status_register {
      * When the VCATCH flag is set, a flag in one of the local fault status registers is also set to
      * indicate the type of fault.
      */
-    bit_read_write_register_field<3> vcatch;
+    bit_read_clear_register_field<3> vcatch;
     /**
      * External debug request flag:
      *
@@ -592,7 +591,7 @@ union debug_fault_status_register {
      *
      * The processor stops on next instruction boundary.
      */
-    bit_read_write_register_field<4> external;
+    bit_read_clear_register_field<4> external;
 };
 static_assert(sizeof(debug_fault_status_register) == sizeof(raw_register));
 
