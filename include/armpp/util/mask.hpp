@@ -16,6 +16,11 @@ struct bit_sequence<1, T> {
     static constexpr T value = 1;
 };
 
+template <std::unsigned_integral T>
+struct bit_sequence<0, T> {
+    static constexpr T value = 0;
+};
+
 template <std::size_t Length, std::unsigned_integral T = std::uint32_t>
 constexpr T bit_sequence_v = bit_sequence<Length, T>::value;
 
@@ -25,7 +30,7 @@ static_assert(bit_sequence_v<3> == 0b111);
 template <std::size_t Offset, std::size_t Length, std::unsigned_integral T = std::uint32_t>
     requires(Length + Offset <= sizeof(T) * 8)
 struct bit_mask {
-    static constexpr T value = bit_sequence_v<Length, T> << Offset;
+    static constexpr T value = (Offset >= sizeof(T) * 8) ? 0 : bit_sequence_v<Length, T> << Offset;
 };
 
 template <std::size_t Offset, std::size_t Length, std::unsigned_integral T = std::uint32_t>
