@@ -13,25 +13,25 @@ constexpr std::uint32_t interrupt_reg_count = 8;
 constexpr std::uint32_t interrupt_count     = 240;    // 240 as per ARM docs
 
 union interrupt_set_enable_register {
-    write_only_register_field_array<set_t, 1, interrupt_count, interrupt_reg_count>    set;
     read_only_register_field_array<enabled_t, 1, interrupt_count, interrupt_reg_count> get;
+    write_only_register_field_array<set_t, 1, interrupt_count, interrupt_reg_count>    set;
 };
 static_assert(sizeof(interrupt_set_enable_register) == sizeof(raw_register) * 8);
 
 union interrupt_clear_enable_register {
-    write_only_register_field_array<clear_t, 1, interrupt_count, interrupt_reg_count>  set;
     read_only_register_field_array<enabled_t, 1, interrupt_count, interrupt_reg_count> get;
+    write_only_register_field_array<clear_t, 1, interrupt_count, interrupt_reg_count>  set;
 };
 static_assert(sizeof(interrupt_clear_enable_register) == sizeof(raw_register) * 8);
 
 union interrupt_set_pending_register {
-    write_only_register_field_array<set_t, 1, interrupt_count, interrupt_reg_count>   set;
     read_only_register_field_array<active_t, 1, interrupt_count, interrupt_reg_count> get;
+    write_only_register_field_array<set_t, 1, interrupt_count, interrupt_reg_count>   set;
 };
 
 union interrupt_clear_pending_register {
-    write_only_register_field_array<clear_t, 1, interrupt_count, interrupt_reg_count> set;
     read_only_register_field_array<active_t, 1, interrupt_count, interrupt_reg_count> get;
+    write_only_register_field_array<clear_t, 1, interrupt_count, interrupt_reg_count> set;
 };
 
 using active_bit_register
@@ -104,41 +104,72 @@ public:
         = delete;
 
 public:
+    /**
+     * @brief Enable IRQ
+     *
+     * IRQ cannot be negative
+     *
+     * @param irqn
+     */
     void
-    enable_irq(std::size_t index)
+    enable_irq(irqn_t irqn)
     {
+        auto index       = static_cast<std::uint32_t>(irqn);
         iser_.set[index] = set_t::set;
     }
 
     void
-    disable_irq(std::size_t index)
+    disable_irq(irqn_t irqn)
     {
+        auto index       = static_cast<std::uint32_t>(irqn);
         icer_.set[index] = clear_t::clear;
     }
 
     bool
-    irq_enabled(std::size_t index) const
+    irq_enabled(irqn_t irqn) const
     {
+        auto index = static_cast<std::uint32_t>(irqn);
         return iser_.get[index] == enabled_t::enabled;
     }
 
     void
-    set_pending(std::size_t index)
+    set_pending(irqn_t irqn)
     {
+        auto index       = static_cast<std::uint32_t>(irqn);
         ispr_.set[index] = set_t::set;
     }
 
     void
-    clear_pending(std::size_t index)
+    clear_pending(irqn_t irqn)
     {
+        auto index       = static_cast<std::uint32_t>(irqn);
         icpr_.set[index] = clear_t::clear;
     }
 
     bool
-    is_pending(std::size_t index) const
+    is_pending(irqn_t irqn) const
     {
+        auto index = static_cast<std::uint32_t>(irqn);
         return ispr_.get[index] == active_t::active;
     }
+
+    bool
+    is_active(irqn_t irqn) const
+    {
+        auto index = static_cast<std::uint32_t>(irqn);
+        return iabr_[index] == active_t::active;
+    }
+
+    std::uint32_t
+    get_irq_priority(irqn_t irq) const;
+
+    void
+    set_irq_priority(irqn_t irq, std::uint32_t priority);
+
+    priority_grouping_t
+    get_piority_groping() const;
+
+    void set_priority_grouping(priority_grouping_t);
 };
 
 static_assert(sizeof(nvic)

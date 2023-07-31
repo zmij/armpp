@@ -121,16 +121,6 @@ union vector_table_offset_register {
 static_assert(sizeof(vector_table_offset_register) == sizeof(raw_register));
 
 enum class system_reset_t { no_effect = 0, reset = 1 };
-enum class priority_split_t {
-    split_7_1 = 0, /*<! 7.1 indicates 7 bits of pre-emption priority, 1 bit of subpriority */
-    split_6_2 = 1, /*<! 6.2 indicates 6 bits of pre-emption priority, 2 bits of subpriority */
-    split_5_3 = 2, /*<! 5.3 indicates 5 bits of pre-emption priority, 3 bits of subpriority */
-    split_4_5 = 3, /*<! 5.3 indicates 4 bits of pre-emption priority, 4 bits of subpriority */
-    split_3_5 = 4, /*<! 5.3 indicates 3 bits of pre-emption priority, 5 bits of subpriority */
-    split_2_6 = 5, /*<! 5.3 indicates 2 bits of pre-emption priority, 6 bits of subpriority */
-    split_1_7 = 6, /*<! 5.3 indicates 1 bits of pre-emption priority, 7 bits of subpriority */
-    split_0_8 = 7  /*<! 0.8 indicates no pre-emption priority, 8 bits of subpriority.*/
-};
 enum class endiannes_t { little = 0, big = 1 };
 
 /**
@@ -148,7 +138,9 @@ enum class endiannes_t { little = 0, big = 1 };
  * external system from seeing SYSRESETREQ. It is therefore recommended that VECTRESET and
  * SYSRESETREQ be used exclusively and never both written to 1 at the same time.
  */
+template <register_mode Mode = register_mode::volatile_reg>
 union app_interrupt_and_reset_control_register {
+    static constexpr std::uint32_t register_key = 0x5fa;
     /**
      * System Reset bit. Resets the system, with the exception of debug components
      *
@@ -156,7 +148,7 @@ union app_interrupt_and_reset_control_register {
      *
      * For debugging, only write this bit when the core is halted.
      */
-    read_write_register_field<system_reset_t, 0, 1> vectreset;
+    read_write_register_field<system_reset_t, 0, 1, access_mode::bitwise_logic, Mode> vectreset;
     /**
      * @brief Clear active vector bit:
      *
@@ -171,29 +163,33 @@ union app_interrupt_and_reset_control_register {
      * IPSR is not cleared by this operation. So, if used by an application, it must only be used at
      * the base level of activation, or within a system handler whose active bit can be set.
      */
-    read_write_register_field<clear_t, 1, 1> vectclractive;
+    read_write_register_field<clear_t, 1, 1, access_mode::bitwise_logic, Mode> vectclractive;
     /**
      * @brief Causes a signal to be asserted to the outer system that indicates a reset is
      * requested. Intended to force a large system reset of all major components except for debug.
      * Setting this bit does not prevent Halting Debug from running.
      */
-    read_write_register_field<system_reset_t, 2, 1> sysresetreq;
+    read_write_register_field<system_reset_t, 2, 1, access_mode::bitwise_logic, Mode> sysresetreq;
     /**
      * @brief Interrupt priority grouping field
      */
-    read_write_register_field<priority_split_t, 8, 3> prigroup;
+    read_write_register_field<priority_grouping_t, 8, 3, access_mode::bitwise_logic, Mode> prigroup;
     /**
      * @brief Data endianness bit
      *
      * ENDIANESS is sampled from the BIGEND input port during reset. You cannot change ENDIANESS
      * outside of reset.
      */
-    read_only_register_field<endiannes_t, 2, 1> edniannes;
+    read_only_register_field<endiannes_t, 2, 1, access_mode::bitwise_logic, Mode> edniannes;
 
-    raw_read_only_register_field<16, 16>  vectkeystat;
-    raw_read_write_register_field<16, 16> vectkey;
+    raw_read_only_register_field<16, 16, access_mode::bitwise_logic, Mode>  vectkeystat;
+    raw_read_write_register_field<16, 16, access_mode::bitwise_logic, Mode> vectkey;
+
+    raw_read_write_register_field<0, 32, access_mode::bitwise_logic, Mode> raw;
+
+    constexpr app_interrupt_and_reset_control_register() noexcept : raw{} {};
 };
-static_assert(sizeof(app_interrupt_and_reset_control_register) == sizeof(raw_register));
+static_assert(sizeof(app_interrupt_and_reset_control_register<>) == sizeof(raw_register));
 
 /**
  * @brief System Control Register
@@ -286,6 +282,9 @@ union configuration_control_register {
 
 static_assert(sizeof(configuration_control_register) == sizeof(raw_register));
 
+// TODO move processor-specific stuff to a separate header
+inline namespace cm3 {
+
 enum class system_handler_index_t {
     mem_manage_fault = 0,
     bus_fault        = 1,
@@ -295,6 +294,9 @@ enum class system_handler_index_t {
     pend_sv          = 10,
     sys_tick         = 11,
 };
+
+}    // namespace cm3
+
 using system_handler_priority_register = read_write_register_field_array<std::uint32_t, 8, 12, 3>;
 static_assert(sizeof(system_handler_priority_register) == sizeof(raw_register) * 3);
 
@@ -628,6 +630,9 @@ using auxilary_fault_address_register = read_write_register_field_array<raw_regi
 static_assert(sizeof(auxilary_fault_address_register) == sizeof(raw_register));
 
 class scb {
+private:
+    using aircr_nv = app_interrupt_and_reset_control_register<register_mode::non_volatile_reg>;
+
 public:
     static constexpr address base_address = 0xe000ed00;
     static constexpr address end_address  = 0xe000ed3c + sizeof(auxilary_fault_address_register);
@@ -638,21 +643,83 @@ public:
         return {.raw = cpuid_.raw};
     }
 
+    /**
+     * @brief  Read the priority for a system exception handler
+     *
+     * @param  syshandler The number of the system exception handler
+     * @return            The priority for the interrupt
+     *
+     * @todo The returned priority value is automatically aligned to the implemented
+     * priority bits of the microcontroller.
+     *
+     * Set the priority for the specified interrupt.
+     *
+     * Note: The priority cannot be set for every core interrupt.
+     */
+    std::uint32_t
+    get_priority(system_handler_index_t syshandler) const
+    {
+        return shp_[static_cast<std::uint32_t>(syshandler)];
+    }
+    /**
+     * @brief Set the piority for a system exception handler
+     *
+     * @param syshandler
+     * @param priority
+     *
+     * Note: The priority cannot be set for every core interrupt.
+     */
+    void
+    set_piority(system_handler_index_t syshandler, std::uint32_t priority)
+    {
+        shp_[static_cast<std::uint32_t>(syshandler)] = priority;
+    }
+
+    priority_grouping_t
+    get_priority_grouping() const
+    {
+        return aircr_.prigroup;
+    }
+
+    void
+    set_priority_grouping(priority_grouping_t val)
+    {
+        aircr_nv new_val;
+        new_val.raw      = aircr_.raw;
+        new_val.vectkey  = aircr_nv::register_key;
+        new_val.prigroup = val;
+
+        aircr_.raw = new_val.raw;
+    }
+
+    [[noreturn]] void
+    system_reset()
+    {
+        aircr_nv new_val;
+        new_val.prigroup    = aircr_.prigroup;
+        new_val.sysresetreq = system_reset_t::reset;
+        new_val.vectkey     = aircr_nv::register_key;
+
+        aircr_.raw = new_val.raw;
+
+        while (1) {}
+    }
+
 private:
-    cpu_id_base_register                      cpuid_;    // 0xe000ed00
-    interrupt_control_state_register          icsr_;     // 0xe000ed04
-    vector_table_offset_register              voff_;     // 0xe000ed08
-    app_interrupt_and_reset_control_register  aircr_;    // 0xe000ed0c
-    system_control_register                   scr_;      // 0xe000ed10
-    configuration_control_register            ccr_;      // 0xe000ed14
-    system_handler_priority_register          shp_;      // 0xe000ed18, 0xe000ed1c , 0xe000ed20
-    system_handler_control_and_state_register shcsr_;    // 0xe000ed24
-    configurable_fault_status_register        cfsr_;     // 0xe000ed28
-    hard_fault_status_register                hfsr_;     // 0xe000ed2c
-    debug_fault_status_register               dfsr_;     // 0xe000ed30
-    memmanage_fault_address_register          mmfar_;    // 0xe000ed34
-    bus_fault_address_register                bfar_;     // 0xe000ed38
-    auxilary_fault_address_register           afsr_;     // 0xe000ed3c
+    cpu_id_base_register                       cpuid_;    // 0xe000ed00
+    interrupt_control_state_register           icsr_;     // 0xe000ed04
+    vector_table_offset_register               voff_;     // 0xe000ed08
+    app_interrupt_and_reset_control_register<> aircr_;    // 0xe000ed0c
+    system_control_register                    scr_;      // 0xe000ed10
+    configuration_control_register             ccr_;      // 0xe000ed14
+    system_handler_priority_register           shp_;      // 0xe000ed18, 0xe000ed1c , 0xe000ed20
+    system_handler_control_and_state_register  shcsr_;    // 0xe000ed24
+    configurable_fault_status_register         cfsr_;     // 0xe000ed28
+    hard_fault_status_register                 hfsr_;     // 0xe000ed2c
+    debug_fault_status_register                dfsr_;     // 0xe000ed30
+    memmanage_fault_address_register           mmfar_;    // 0xe000ed34
+    bus_fault_address_register                 bfar_;     // 0xe000ed38
+    auxilary_fault_address_register            afsr_;     // 0xe000ed3c
 };
 
 static_assert(sizeof(scb) == scb::end_address - scb::base_address);
