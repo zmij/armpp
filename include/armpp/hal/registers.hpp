@@ -158,12 +158,14 @@ using field_storage_type_t = field_storage_type<T, Mode>::type;
  * @tparam Size The size in bits of the register value
  * @tparam Access The access mode of the register
  * @tparam Mode The mode of the register
+ * @tparam SetValueType The type to use to set the value, defaults to value type
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size, access_mode Access,
-          register_mode Mode>
+          register_mode Mode, concepts::register_value SetValueType>
 struct register_data {
-    using value_type   = T;
-    using storage_type = field_storage_type_t<T, Mode>;
+    using value_type     = T;
+    using set_value_type = SetValueType;
+    using storage_type   = field_storage_type_t<T, Mode>;
 
     raw_register pad_ : Offset = 0;    ///< Padding bits
     storage_type value_ : Size;        ///< Value of the register field
@@ -183,9 +185,13 @@ struct register_data {
      * @param value The value to be set
      */
     void
-    set(value_type value)
+    set(set_value_type value)
     {
-        value_ = value;
+        if constexpr (!std::is_same_v<value_type, set_value_type>) {
+            value_ = static_cast<value_type>(value);
+        } else {
+            value_ = value;
+        }
     }
 
     constexpr register_data() = default;
@@ -196,11 +202,14 @@ struct register_data {
  * @tparam T The type of the register value
  * @tparam Size The size in bits of the register value
  * @tparam Mode The mode of the register
+ * @tparam SetValueType The type to use to set the value, defaults to value type
  */
-template <concepts::register_value T, std::size_t Size, register_mode Mode>
-struct register_data<T, 0, Size, access_mode::field, Mode> {
-    using value_type   = T;
-    using storage_type = field_storage_type_t<T, Mode>;
+template <concepts::register_value T, std::size_t Size, register_mode Mode,
+          concepts::register_value SetValueType>
+struct register_data<T, 0, Size, access_mode::field, Mode, SetValueType> {
+    using value_type     = T;
+    using set_value_type = SetValueType;
+    using storage_type   = field_storage_type_t<T, Mode>;
 
     storage_type value_ : Size;
 
@@ -219,9 +228,13 @@ struct register_data<T, 0, Size, access_mode::field, Mode> {
      * @param value The value to be set
      */
     void
-    set(value_type value)
+    set(set_value_type value)
     {
-        value_ = value;
+        if constexpr (!std::is_same_v<value_type, set_value_type>) {
+            value_ = static_cast<value_type>(value);
+        } else {
+            value_ = value;
+        }
     }
 
     constexpr register_data() = default;
@@ -233,11 +246,14 @@ struct register_data<T, 0, Size, access_mode::field, Mode> {
  * @tparam Offset The bit offset of the register value
  * @tparam Size The size in bits of the register value
  * @tparam Mode The mode of the register
+ * @tparam SetValueType The type to use to set the value, defaults to value type
  */
-template <concepts::register_value T, std::size_t Offset, std::size_t Size, register_mode Mode>
-struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode> {
+template <concepts::register_value T, std::size_t Offset, std::size_t Size, register_mode Mode,
+          concepts::register_value SetValueType>
+struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValueType> {
     static constexpr auto mask = util::bit_mask_v<Offset, Size, raw_register>;
     using value_type           = T;
+    using set_value_type       = SetValueType;
     using storage_type         = field_storage_type_t<raw_register, Mode>;
 
     storage_type register_;
@@ -261,9 +277,9 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode> {
      * @param value The value to be set
      */
     void
-    set(value_type value)
+    set(set_value_type value)
     {
-        if constexpr (!std::is_same_v<value_type, raw_register>) {
+        if constexpr (!std::is_same_v<set_value_type, raw_register>) {
             register_ |= (static_cast<raw_register>(value) << Offset) & mask;
         } else {
             register_ |= (value << Offset) & mask;
@@ -287,15 +303,19 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode> {
  *  @tparam T Type that satisfies the register_value concept.
  *  @tparam Offset Offset of the register.
  *  @tparam Size Size of the register.
- *  @tparam Access Access mode of the register (Default: access_mode::field).
+ *  @tparam Access Access mode of the register.
  *  @tparam Mode Register mode (Default: register_mode::volatile_reg).
+ *  @tparam SetValueType The type to use to set the value, defaults to value type
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode   Access = default_access_mode_v<T>,
-          register_mode Mode   = register_mode::volatile_reg>
+          access_mode              Access       = default_access_mode_v<T>,
+          register_mode            Mode         = register_mode::volatile_reg,
+          concepts::register_value SetValueType = T>
     requires(Offset + Size <= register_bits)
-struct register_field_base : private detail::register_data<T, Offset, Size, Access, Mode> {
-    using value_type = T;
+struct register_field_base
+    : private detail::register_data<T, Offset, Size, Access, Mode, SetValueType> {
+    using value_type     = T;
+    using set_value_type = SetValueType;
 
     /** @brief Default constructor. */
     constexpr register_field_base() = default;
@@ -396,7 +416,7 @@ protected:
      * @return        The reference to this register_field_base instance.
      */
     register_field_base&
-    operator=(T const& value)
+    operator=(set_value_type const& value)
     {
         set(value);
         return *this;
@@ -409,7 +429,7 @@ protected:
      */
     constexpr operator value_type() const { return get(); }
 
-    using reg_data_type = detail::register_data<T, Offset, Size, Access, Mode>;
+    using reg_data_type = detail::register_data<T, Offset, Size, Access, Mode, SetValueType>;
     using reg_data_type::get;
     using reg_data_type::set;
 };
@@ -443,14 +463,17 @@ operator<(T const& rhs, register_field_base<T, Offset, Size, Access, Mode> const
  *  @tparam T Type that satisfies the register_value concept.
  *  @tparam Offset Offset of the register.
  *  @tparam Size Size of the register.
- *  @tparam Access Access mode of the register (Default: access_mode::field).
- *  @tparam Mode Register mode (Default: register_mode::volatile_reg).
+ *  @tparam Access Access mode of the register.
+ *  @tparam Mode Register mode.
+ *  @tparam SetValueType The type to use to set the value, defaults to value type
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode   Access = default_access_mode_v<T>,
-          register_mode Mode   = register_mode::volatile_reg>
-struct read_write_register_field : register_field_base<T, Offset, Size, Access, Mode> {
-    using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
+          access_mode              Access       = default_access_mode_v<T>,
+          register_mode            Mode         = register_mode::volatile_reg,
+          concepts::register_value SetValueType = T>
+struct read_write_register_field
+    : register_field_base<T, Offset, Size, Access, Mode, SetValueType> {
+    using base_type  = register_field_base<T, Offset, Size, Access, Mode, SetValueType>;
     using value_type = typename base_type::value_type;
 
     using base_type::base_type;
@@ -472,14 +495,16 @@ struct read_write_register_field : register_field_base<T, Offset, Size, Access, 
  * @tparam T Type of the register value.
  * @tparam Offset Offset of the register.
  * @tparam Size Size of the register.
- * @tparam Access Access mode of the register (default: access_mode::field).
+ * @tparam Access Access mode of the register.
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
+ * @tparam SetValueType The type to use to set the value, defaults to value type
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode   Access = default_access_mode_v<T>,
-          register_mode Mode   = register_mode::volatile_reg>
-struct read_only_register_field : register_field_base<T, Offset, Size, Access, Mode> {
-    using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
+          access_mode              Access       = default_access_mode_v<T>,
+          register_mode            Mode         = register_mode::volatile_reg,
+          concepts::register_value SetValueType = T>
+struct read_only_register_field : register_field_base<T, Offset, Size, Access, Mode, SetValueType> {
+    using base_type  = register_field_base<T, Offset, Size, Access, Mode, SetValueType>;
     using value_type = typename base_type::value_type;
 
     using base_type::base_type;
@@ -499,14 +524,17 @@ struct read_only_register_field : register_field_base<T, Offset, Size, Access, M
  * @tparam T Type of the register value.
  * @tparam Offset Offset of the register.
  * @tparam Size Size of the register.
- * @tparam Access Access mode of the register (default: access_mode::field).
+ * @tparam Access Access mode of the register.
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
+ * @tparam SetValueType The type to use to set the value, defaults to value type
  */
 template <concepts::register_value T, std::size_t Offset, std::size_t Size,
-          access_mode   Access = default_access_mode_v<T>,
-          register_mode Mode   = register_mode::volatile_reg>
-struct write_only_register_field : register_field_base<T, Offset, Size, Access, Mode> {
-    using base_type  = register_field_base<T, Offset, Size, Access, Mode>;
+          access_mode              Access       = default_access_mode_v<T>,
+          register_mode            Mode         = register_mode::volatile_reg,
+          concepts::register_value SetValueType = T>
+struct write_only_register_field
+    : register_field_base<T, Offset, Size, Access, Mode, SetValueType> {
+    using base_type  = register_field_base<T, Offset, Size, Access, Mode, SetValueType>;
     using value_type = typename base_type::value_type;
 
     using base_type::base_type;
@@ -570,7 +598,7 @@ using bit_read_write_register_field
  * @typedef bit_read_only_register
  * @brief Alias for read_only_register_field with raw_register value type and size 1.
  * @tparam Offset Offset of the register.
- * @tparam Access Access mode of the register (default: access_mode::field).
+ * @tparam Access Access mode of the register.
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = default_access_mode_v<raw_register>,
@@ -582,13 +610,29 @@ using bit_read_only_register_field
  * @typedef bit_write_only_register
  * @brief Alias for write_only_register_field with raw_register value type and size 1.
  * @tparam Offset Offset of the register.
- * @tparam Access Access mode of the register (default: access_mode::field).
+ * @tparam Access Access mode of the register.
  * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
  */
 template <std::size_t Offset, access_mode Access = default_access_mode_v<raw_register>,
           register_mode Mode = register_mode::volatile_reg>
 using bit_write_only_register_field
     = write_only_register_field<raw_register, Offset, 1, Access, Mode>;
+
+/**
+ * @typedef bit_read_clear_register_field
+ *
+ * Register to read register bit field, write `clear_t::clear` to clear
+ *
+ * @tparam Offset Offset of the register.
+ * @tparam AccessType Type to read from the register
+ * @tparam Access Access mode of the register (default: access_mode::bitwise_logic).
+ * @tparam Mode Mode of the register (default: register_mode::volatile_reg).
+ */
+template <std::size_t   Offset, typename AccessType = raw_register,
+          access_mode   Access = access_mode::bitwise_logic,
+          register_mode Mode   = register_mode::volatile_reg>
+using bit_read_clear_register_field
+    = read_write_register_field<AccessType, Offset, 1, Access, Mode, clear_t>;
 
 /**
  * @typedef bool_read_write_register
@@ -648,15 +692,17 @@ struct is_register_field : std::false_type {};
  * @tparam Access The access mode of the register field.
  * @tparam Mode The register mode.
  */
-template <template <concepts::register_value, std::size_t, std::size_t, access_mode, register_mode>
+template <template <typename, std::size_t, std::size_t, access_mode, register_mode, typename>
           typename Reg,
           concepts::register_value T, std::size_t Offset, std::size_t Size, access_mode Access,
-          register_mode Mode>
-struct is_register_field<Reg<T, Offset, Size, Access, Mode>>
-    : std::is_base_of<register_field_base<T, Offset, Size, Access, Mode>,
-                      Reg<T, Offset, Size, Access, Mode>> {};
+          register_mode Mode, concepts::register_value SetValueType>
+struct is_register_field<Reg<T, Offset, Size, Access, Mode, SetValueType>>
+    : std::is_base_of<register_field_base<T, Offset, Size, Access, Mode, SetValueType>,
+                      Reg<T, Offset, Size, Access, Mode, SetValueType>> {};
 
 // Traits static test
+static_assert(concepts::register_value<bool>);
+
 static_assert(!is_register_field<std::uint32_t>::value);
 static_assert(is_register_field<bool_read_write_register_field<0>>::value);
 static_assert(is_register_field<bool_read_only_register_field<0>>::value);
