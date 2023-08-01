@@ -222,6 +222,11 @@ struct register_data<T, 0, Size, access_mode::field, Mode, SetValueType> {
     {
         return value_;
     }
+    value_type
+    get() volatile const
+    {
+        return value_;
+    }
 
     /**
      * @brief Set the value of the register
@@ -264,6 +269,16 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
      */
     constexpr value_type
     get() const
+    {
+        if constexpr (!std::is_same_v<value_type, raw_register>) {
+            return static_cast<value_type>((register_ & mask) >> Offset);
+        } else {
+            return (register_ & mask) >> Offset;
+        }
+    }
+
+    value_type
+    get() volatile const
     {
         if constexpr (!std::is_same_v<value_type, raw_register>) {
             return static_cast<value_type>((register_ & mask) >> Offset);
@@ -428,6 +443,8 @@ protected:
      * @return        The value of the register.
      */
     constexpr operator value_type() const { return get(); }
+
+    operator value_type() volatile const { return get(); }
 
     using reg_data_type = detail::register_data<T, Offset, Size, Access, Mode, SetValueType>;
     using reg_data_type::get;

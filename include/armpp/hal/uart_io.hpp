@@ -67,6 +67,22 @@ operator<<(uart_handle& dev, E val)
 }
 
 /**
+ * @brief Writes the address of a pointer to the UART handle.
+ * @tparam T The type of pointer.
+ * @param dev UART device handle
+ * @param reg The pointer to write.
+ * @return UART device handle reference
+ */
+template <typename T>
+uart_handle&
+operator<<(uart_handle& dev, T* ptr)
+{
+    dev->write("0x");
+    dev->write(reinterpret_cast<std::size_t>(ptr), number_base::hex, sizeof(std::size_t) * 2, '0');
+    return dev;
+}
+
+/**
  * @brief Writes the value of a readable_field to the UART handle.
  * @tparam F The type of the readable_field.
  * @param dev UART device handle
@@ -117,9 +133,9 @@ template <typename Ratio>
 uart_handle&
 operator<<(uart_handle& dev, frequency::frequency<Ratio> const& val)
 {
-    auto base = dev.set_output_number_base(number_base::dec);
+    auto old_base = dev.set_output_number_base(number_base::dec);
     dev << val.count() << hertz_units<Ratio>;
-    dev.set_output_number_base(base);
+    dev.set_output_number_base(old_base);
     return dev;
 }
 
@@ -152,9 +168,9 @@ template <typename Ratio>
 uart_handle&
 operator<<(uart_handle& dev, chrono::duration<Ratio> const& val)
 {
-    auto base = dev.set_output_number_base(number_base::dec);
+    auto old_base = dev.set_output_number_base(number_base::dec);
     dev << val.count() << duration_unit<Ratio>;
-    dev.set_output_number_base(base);
+    dev.set_output_number_base(old_base);
     return dev;
 }
 

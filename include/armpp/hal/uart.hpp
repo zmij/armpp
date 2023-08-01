@@ -367,10 +367,12 @@ public:
      * @brief Set the output width
      * @param val The output width to set
      */
-    void
+    std::uint8_t
     set_output_width(std::uint8_t val)
     {
+        auto tmp      = output_width_;
         output_width_ = val;
+        return tmp;
     }
 
     /**
@@ -387,10 +389,12 @@ public:
      * @brief Set the output fill
      * @param val The output fill to set
      */
-    void
+    char
     set_output_fill(char val)
     {
+        auto tmp     = output_fill_;
         output_fill_ = val;
+        return tmp;
     }
 
     /**
