@@ -181,6 +181,16 @@ struct register_data {
     }
 
     /**
+     * @brief Get the value of the register
+     * @return The value of the register
+     */
+    value_type
+    get() volatile const
+    {
+        return value_;
+    }
+
+    /**
      * @brief Set the value of the register
      * @param value The value to be set
      */
