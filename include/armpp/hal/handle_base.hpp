@@ -20,6 +20,8 @@ struct handle_base {
         : device_{*reinterpret_cast<device_type*>(device_type::base_address)}
     {}
 
+    handle_base(device_type& device) noexcept : device_{device} {}
+
     handle_base(address device_address) noexcept
         : device_{*reinterpret_cast<device_type*>(device_address)}
     {}

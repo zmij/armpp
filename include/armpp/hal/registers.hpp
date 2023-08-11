@@ -204,6 +204,20 @@ struct register_data {
         }
     }
 
+    /**
+     * @brief Set the value of the register
+     * @param value The value to be set
+     */
+    void
+    set(set_value_type value) volatile
+    {
+        if constexpr (!std::is_same_v<value_type, set_value_type>) {
+            value_ = static_cast<value_type>(value);
+        } else {
+            value_ = value;
+        }
+    }
+
     constexpr register_data() = default;
 };
 
@@ -244,6 +258,20 @@ struct register_data<T, 0, Size, access_mode::field, Mode, SetValueType> {
      */
     void
     set(set_value_type value)
+    {
+        if constexpr (!std::is_same_v<value_type, set_value_type>) {
+            value_ = static_cast<value_type>(value);
+        } else {
+            value_ = value;
+        }
+    }
+
+    /**
+     * @brief Set the value of the register
+     * @param value The value to be set
+     */
+    void
+    set(set_value_type value) volatile
     {
         if constexpr (!std::is_same_v<value_type, set_value_type>) {
             value_ = static_cast<value_type>(value);
@@ -303,6 +331,20 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
      */
     void
     set(set_value_type value)
+    {
+        if constexpr (!std::is_same_v<set_value_type, raw_register>) {
+            register_ |= (static_cast<raw_register>(value) << Offset) & mask;
+        } else {
+            register_ |= (value << Offset) & mask;
+        }
+    }
+
+    /**
+     * @brief Set the value of the register
+     * @param value The value to be set
+     */
+    void
+    set(set_value_type value) volatile
     {
         if constexpr (!std::is_same_v<set_value_type, raw_register>) {
             register_ |= (static_cast<raw_register>(value) << Offset) & mask;
@@ -445,6 +487,20 @@ protected:
     {
         set(value);
         return *this;
+    }
+
+    /**
+     * @brief Assignment operator from a value.
+     *
+     * @param value   The value to assign.
+     * @return        void
+     */
+    // register_field_base volatile&
+    void
+    operator=(set_value_type const& value) volatile
+    {
+        set(value);
+        // return *this;
     }
 
     /**

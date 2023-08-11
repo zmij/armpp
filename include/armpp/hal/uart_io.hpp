@@ -3,6 +3,8 @@
 #include <armpp/frequency.hpp>
 #include <armpp/hal/uart.hpp>
 
+#include <string_view>
+
 namespace armpp::hal::uart {
 //----------------------------------------------------------------------------
 // Output
@@ -29,6 +31,15 @@ inline uart_handle&
 operator<<(uart_handle& dev, char const* str)
 {
     dev->write(str);
+    return dev;
+}
+
+inline uart_handle&
+operator<<(uart_handle& dev, std::string_view str)
+{
+    for (auto c : str) {
+        dev->put(c);
+    }
     return dev;
 }
 

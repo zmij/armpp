@@ -1,9 +1,11 @@
 #pragma once
 
+#include <armpp/hal/handle_base.hpp>
 #include <armpp/hal/registers.hpp>
 #include <armpp/util/to_chars.hpp>
 
 #include <cstdint>
+#include <functional>
 
 /**
  * @namespace armpp::hal::uart
@@ -64,10 +66,10 @@ union interrupt_register {
     bool_read_only_register_field<2> tx_overrun_interrupt;
     bool_read_only_register_field<3> rx_overrun_interrupt;
 
-    bit_write_only_register_field<0> tx_interrupt_reset;
-    bit_write_only_register_field<1> rx_interrupt_reset;
-    bit_write_only_register_field<2> tx_overrun_interrupt_reset;
-    bit_write_only_register_field<3> rx_overrun_interrupt_reset;
+    write_only_register_field<clear_t, 0, 1> tx_interrupt_clear;
+    write_only_register_field<clear_t, 0, 1> rx_interrupt_clear;
+    write_only_register_field<clear_t, 0, 1> tx_overrun_interrupt_clear;
+    write_only_register_field<clear_t, 0, 1> rx_overrun_interrupt_clear;
 
     raw_register volatile raw;
 };
@@ -112,6 +114,8 @@ digits_per_byte(number_base base)
     }
 }
 
+class uart_handle;
+
 //----------------------------------------------------------------------------
 /**
  * @class uart
@@ -120,6 +124,11 @@ digits_per_byte(number_base base)
  * Non-constructibe, non-copiable, non-movable
  */
 class uart {
+public:
+    using rx_callback_type  = std::function<void(uart_handle&, char)>;
+    using tx_callback_type  = std::function<void(uart_handle&)>;
+    using ovr_callback_type = std::function<void(uart_handle&)>;
+
 public:
     uart()            = delete;
     uart(uart const&) = delete;
@@ -131,6 +140,42 @@ public:
     uart&
     operator=(uart&&)
         = delete;
+
+    bool
+    tx_interrupt_enabled() volatile const
+    {
+        return ctrl_.tx_interrupt_enable;
+    }
+
+    bool
+    tx_interrupt() const
+    {
+        return interrupt_.tx_interrupt;
+    }
+
+    void
+    clear_tx_interrupt()
+    {
+        interrupt_.tx_interrupt_clear = clear_t::clear;
+    }
+
+    bool
+    rx_interrupt_enabled() volatile const
+    {
+        return ctrl_.rx_interrupt_enable;
+    }
+
+    bool
+    rx_interrupt() const
+    {
+        return interrupt_.rx_interrupt;
+    }
+
+    void
+    clear_rx_interrupt()
+    {
+        interrupt_.rx_interrupt_clear = clear_t::clear;
+    }
 
     /**
      * @brief Check if the TX buffer is full
@@ -240,10 +285,26 @@ public:
     char
     get()    // TODO timeout and error status
     {
-        while (!tx_buffer_full())
+        while (!rx_buffer_full())
             ;
         return static_cast<char>(data_.get());
     }
+
+    void
+    process_interrupt();
+    void
+    process_overrun_interrupt();
+
+    void
+    set_tx_handler(tx_callback_type&& cb);
+
+    void
+    set_rx_handler(rx_callback_type&& cb);
+
+    void
+    set_tx_overrun_handler(ovr_callback_type&& cb);
+    void
+    set_rx_overrun_handler(ovr_callback_type&& cb);
 
 private:
     friend class uart_handle;
@@ -270,14 +331,11 @@ static_assert(sizeof(uart) == 4 * 5);
  * @class uart_handle
  * @brief Class representing a UART handle
  */
-class uart_handle {
+class uart_handle : public handle_base<uart> {
 public:
-    /**
-     * @brief Constructor
-     * @param device_address The address of the UART device
-     */
-    uart_handle(address device_address) noexcept : device_{*reinterpret_cast<uart*>(device_address)}
-    {}
+    using base_type = handle_base<uart>;
+    using base_type::base_type;
+
     /**
      * @brief Constructor with initialization parameters
      * @param device_address The address of the UART device
@@ -298,46 +356,6 @@ public:
     {
         // TODO check for error status and report it somehow
         device_.configure(init);
-    }
-
-    /**
-     * @brief Dereference operator
-     * @return The UART device reference
-     */
-    uart&
-    operator*() noexcept
-    {
-        return device_;
-    }
-
-    /**
-     * @brief Const dereference operator
-     * @return The UART device const reference
-     */
-    uart const&
-    operator*() const noexcept
-    {
-        return device_;
-    }
-
-    /**
-     * @brief Arrow operator
-     * @return The pointer to the UART device
-     */
-    uart*
-    operator->() noexcept
-    {
-        return &device_;
-    }
-
-    /**
-     * @brief Const arrow operator
-     * @return The const pointer to the UART device
-     */
-    uart const*
-    operator->() const noexcept
-    {
-        return &device_;
     }
 
     /**
@@ -408,8 +426,6 @@ public:
     }
 
 private:
-    uart& device_; /**< The UART device */
-
     number_base  output_number_base_ = number_base::bin; /**< The output number base */
     std::uint8_t output_width_       = 0;                /**< The output width */
     char         output_fill_        = ' ';              /**< The output fill */
