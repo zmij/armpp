@@ -177,12 +177,7 @@ static_assert(sizeof(nvic)
                      * (8 + 24 + 8 + 24 + 8 + 24 + 8 + 24 + 8 + 56 + 60 + 644 + 1));
 static_assert(sizeof(nvic) == (0xe000ef04 - nvic::base_address));    // Full NVIC size
 
-class systick_handle : public handle_base<nvic> {
-public:
-    using base_type = handle_base<nvic>;
-
-    systick_handle() : base_type{nvic::base_address} {}
-};
+class nvic_handle : public handle_base<nvic> {};
 
 // software trigger interrupt                   0xe000ef00
 
