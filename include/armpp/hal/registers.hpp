@@ -333,9 +333,9 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
     set(set_value_type value)
     {
         if constexpr (!std::is_same_v<set_value_type, raw_register>) {
-            register_ |= (static_cast<raw_register>(value) << Offset) & mask;
+            register_ = (register_ & ~mask) | ((static_cast<raw_register>(value) << Offset) & mask);
         } else {
-            register_ |= (value << Offset) & mask;
+            register_ = (register_ & ~mask) | ((value << Offset) & mask);
         }
     }
 
@@ -347,9 +347,9 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
     set(set_value_type value) volatile
     {
         if constexpr (!std::is_same_v<set_value_type, raw_register>) {
-            register_ |= (static_cast<raw_register>(value) << Offset) & mask;
+            register_ = (register_ & ~mask) | ((static_cast<raw_register>(value) << Offset) & mask);
         } else {
-            register_ |= (value << Offset) & mask;
+            register_ = (register_ & ~mask) | ((value << Offset) & mask);
         }
     }
 
