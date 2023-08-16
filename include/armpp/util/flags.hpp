@@ -37,11 +37,13 @@ or_(std::initializer_list<T> const& vs) noexcept
 
 }    // namespace detail
 
-template <concepts::enumeration T>
+template <concepts::enumeration T, std::size_t Bits = sizeof(T) * 8>
 class flags {
 public:
     using enumeration_type = T;
     using underlying_type  = std::underlying_type_t<enumeration_type>;
+
+    static constexpr std::size_t bits = Bits;
 
 public:
     constexpr flags() noexcept = default;
@@ -165,85 +167,85 @@ private:
     underlying_type value_{0};
 };
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator|(flags<T> lhs, flags<T> rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator|(flags<T, Bits> lhs, flags<T> rhs) noexcept
 {
     lhs |= rhs;
     return lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator|(flags<T> lhs, T rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator|(flags<T, Bits> lhs, T rhs) noexcept
 {
     lhs |= rhs;
     return lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator|(T lhs, flags<T> rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator|(T lhs, flags<T, Bits> rhs) noexcept
 {
     return rhs | lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator&(flags<T> lhs, flags<T> rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator&(flags<T, Bits> lhs, flags<T, Bits> rhs) noexcept
 {
     lhs &= rhs;
     return lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator&(flags<T> lhs, T rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator&(flags<T, Bits> lhs, T rhs) noexcept
 {
     lhs &= rhs;
     return lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator&(T lhs, flags<T> rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator&(T lhs, flags<T, Bits> rhs) noexcept
 {
     return rhs & lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator^(flags<T> lhs, flags<T> rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator^(flags<T, Bits> lhs, flags<T, Bits> rhs) noexcept
 {
     lhs ^= rhs;
     return lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator^(flags<T> lhs, T rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator^(flags<T, Bits> lhs, T rhs) noexcept
 {
     lhs ^= rhs;
     return lhs;
 }
 
-template <concepts::enumeration T>
-constexpr flags<T>
-operator^(T lhs, flags<T> rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits>
+constexpr flags<T, Bits>
+operator^(T lhs, flags<T, Bits> rhs) noexcept
 {
     return rhs ^ lhs;
 }
 
-template <concepts::enumeration T, std::integral U>
-constexpr flags<T>
-operator>>(flags<T> lhs, U rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits, std::integral U>
+constexpr flags<T, Bits>
+operator>>(flags<T, Bits> lhs, U rhs) noexcept
 {
     return lhs >>= rhs;
 }
 
-template <concepts::enumeration T, std::integral U>
-constexpr flags<T>
-operator<<(flags<T> lhs, U rhs) noexcept
+template <concepts::enumeration T, std::size_t Bits, std::integral U>
+constexpr flags<T, Bits>
+operator<<(flags<T, Bits> lhs, U rhs) noexcept
 {
     return lhs <<= rhs;
 }
@@ -251,8 +253,8 @@ operator<<(flags<T> lhs, U rhs) noexcept
 template <typename T>
 struct is_flags : std::false_type {};
 
-template <typename T>
-struct is_flags<flags<T>> : std::true_type {};
+template <typename T, std::size_t Bits>
+struct is_flags<flags<T, Bits>> : std::true_type {};
 
 template <typename T>
 constexpr bool is_flags_v = is_flags<T>::value;
