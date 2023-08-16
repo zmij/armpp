@@ -77,6 +77,31 @@ operator<<(uart_handle& dev, E val)
     return dev;
 }
 
+template <concepts::flags F>
+uart_handle&
+operator<<(uart_handle& dev, F val)
+{
+    using enumeration_type   = typename F::enumeration_type;
+    constexpr auto bit_count = F::bits;
+    if (!val) {
+        dev << "{}";
+    } else {
+        auto cnt = 0;
+        dev->put('{');
+        for (auto i = bit_count; i > 0; --i) {
+            auto f = static_cast<enumeration_type>(1 << (i - 1));
+            if (!!(val & f)) {
+                if (cnt > 0) {
+                    dev->put(',');
+                }
+                dev << f;
+            }
+        }
+        dev->put('}');
+    }
+    return dev;
+}
+
 /**
  * @brief Writes the address of a pointer to the UART handle.
  * @tparam T The type of pointer.
