@@ -1,6 +1,8 @@
 #pragma once
 
 #include <armpp/hal/common_types.hpp>
+#include <armpp/util/concepts.hpp>
+#include <armpp/util/flags.hpp>
 #include <armpp/util/mask.hpp>
 
 #include <concepts>
@@ -11,13 +13,7 @@
 namespace armpp::concepts {
 
 template <typename T>
-concept integral = std::is_integral_v<T>;
-
-template <typename T>
-concept enumeration = std::is_enum_v<T>;
-
-template <typename T>
-concept register_value = integral<T> || enumeration<T>;
+concept register_value = std::integral<T> || enumeration<T> || flags<T>;
 
 }    // namespace armpp::concepts
 
@@ -114,9 +110,11 @@ enum class access_mode { field = 0, bitwise_logic };
 template <typename T>
 struct default_access_mode;
 
-template <concepts::integral T>
+template <std::integral T>
 struct default_access_mode<T> : std::integral_constant<access_mode, access_mode::field> {};
 template <concepts::enumeration T>
+struct default_access_mode<T> : std::integral_constant<access_mode, access_mode::bitwise_logic> {};
+template <concepts::flags T>
 struct default_access_mode<T> : std::integral_constant<access_mode, access_mode::bitwise_logic> {};
 
 template <concepts::register_value T>
@@ -308,7 +306,11 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
     constexpr value_type
     get() const
     {
-        if constexpr (!std::is_same_v<value_type, raw_register>) {
+        if constexpr (concepts::flags<value_type>) {
+            auto val
+                = static_cast<typename value_type::enumeration_type>((register_ & mask) >> Offset);
+            return value_type{val};
+        } else if constexpr (!std::is_same_v<value_type, raw_register>) {
             return static_cast<value_type>((register_ & mask) >> Offset);
         } else {
             return (register_ & mask) >> Offset;
@@ -318,7 +320,11 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
     value_type
     get() volatile const
     {
-        if constexpr (!std::is_same_v<value_type, raw_register>) {
+        if constexpr (concepts::flags<value_type>) {
+            auto val
+                = static_cast<typename value_type::enumeration_type>((register_ & mask) >> Offset);
+            return value_type{val};
+        } else if constexpr (!std::is_same_v<value_type, raw_register>) {
             return static_cast<value_type>((register_ & mask) >> Offset);
         } else {
             return (register_ & mask) >> Offset;
@@ -332,7 +338,9 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
     void
     set(set_value_type value)
     {
-        if constexpr (!std::is_same_v<set_value_type, raw_register>) {
+        if constexpr (concepts::flags<set_value_type>) {
+            register_ = (register_ & ~mask) | ((value.underlying() << Offset) & mask);
+        } else if constexpr (!std::is_same_v<set_value_type, raw_register>) {
             register_ = (register_ & ~mask) | ((static_cast<raw_register>(value) << Offset) & mask);
         } else {
             register_ = (register_ & ~mask) | ((value << Offset) & mask);
@@ -346,7 +354,9 @@ struct register_data<T, Offset, Size, access_mode::bitwise_logic, Mode, SetValue
     void
     set(set_value_type value) volatile
     {
-        if constexpr (!std::is_same_v<set_value_type, raw_register>) {
+        if constexpr (concepts::flags<set_value_type>) {
+            register_ = (register_ & ~mask) | ((value.underlying() << Offset) & mask);
+        } else if constexpr (!std::is_same_v<set_value_type, raw_register>) {
             register_ = (register_ & ~mask) | ((static_cast<raw_register>(value) << Offset) & mask);
         } else {
             register_ = (register_ & ~mask) | ((value << Offset) & mask);
@@ -412,7 +422,23 @@ protected:
     constexpr bool
     operator==(value_type const& other) const
     {
-        return get() == get();
+        return get() == other;
+    }
+
+    template <typename U>
+    constexpr bool
+    operator==(U const& other) const
+        requires(std::is_convertible_v<U, T>)
+    {
+        return get() == other;
+    }
+
+    template <typename U>
+    constexpr bool
+    operator==(U const& other) volatile const
+        requires(std::is_convertible_v<U, T>)
+    {
+        return get() == other;
     }
 
     /**
@@ -439,6 +465,22 @@ protected:
         return !(*this == other);
     }
 
+    template <typename U>
+    constexpr bool
+    operator!=(U const& other) const
+        requires(std::is_convertible_v<U, value_type>)
+    {
+        return !(*this == other);
+    }
+
+    template <typename U>
+    constexpr bool
+    operator!=(U const& other) volatile const
+        requires(std::is_convertible_v<U, T>)
+    {
+        return !(*this == other);
+    }
+
     /**
      * @brief Less than operator between two register_field_base instances.
      *
@@ -459,6 +501,22 @@ protected:
      */
     constexpr bool
     operator<(value_type const& other) const
+    {
+        return get() < other;
+    }
+
+    template <typename U>
+    constexpr bool
+    operator<(U const& other) const
+        requires(std::is_convertible_v<U, value_type>)
+    {
+        return get() < other;
+    }
+
+    template <typename U>
+    constexpr bool
+    operator<(U const& other) volatile const
+        requires(std::is_convertible_v<U, value_type>)
     {
         return get() < other;
     }
@@ -501,6 +559,15 @@ protected:
     {
         set(value);
         // return *this;
+    }
+
+    template <typename U>
+    register_field_base&
+    operator=(U const& value)
+        requires(std::is_convertible_v<U, set_value_type>)
+    {
+        set(value);
+        return *this;
     }
 
     /**
